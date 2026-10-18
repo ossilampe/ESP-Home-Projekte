@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="480" height="320" font-family="Montserrat, Roboto, Arial, sans-serif">
+  <defs>
+    <linearGradient id="puffer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C2185B"/><stop offset="1" stop-color="#26A6B8"/></linearGradient>
+  </defs>
+  <rect width="480" height="320" fill="#000"/>
+  <text x="12" y="5" font-size="22" fill="#fff" dominant-baseline="hanging" font-weight="500">Ofen Übersicht</text>
+  <rect x="0" y="32" width="480" height="2" fill="#2A3541"/>
+  <!-- Vorlauf rot -->
+  <polyline points="150,110 299,110" fill="none" stroke="#C2185B" stroke-width="4"/>
+  <polyline points="345,58 299,58 299,213" fill="none" stroke="#C2185B" stroke-width="4"/>
+  <!-- Ruecklauf blau -->
+  <polyline points="150,240 182,240" fill="none" stroke="#2CA3B8" stroke-width="4"/>
+  <polyline points="218,240 276,240" fill="none" stroke="#2CA3B8" stroke-width="4"/>
+  <polyline points="324,240 345,240" fill="none" stroke="#2CA3B8" stroke-width="4"/>
+  <!-- 3-Wege-Ventil -->
+  <g fill="none" stroke="#B0B7BE" stroke-width="2">
+    <polygon points="276,227 276,253 300,240"/><polygon points="324,227 324,253 300,240"/><polygon points="288,215 312,215 300,240"/>
+    <line x1="300" y1="240" x2="300" y2="267"/><line x1="290" y1="267" x2="310" y2="267" stroke-width="3"/>
+  </g>
+  <!-- Umwaelzpumpe (gruen, Ofen > 50 Grad) -->
+  <rect x="182" y="220" width="36" height="40" rx="18" fill="#2E9E3F" stroke="#8BE28F" stroke-width="3"/>
+  <polyline points="208,230 193,240 208,250" fill="none" stroke="#fff" stroke-width="3"/>
+  <text x="200" y="191" font-size="18" fill="#6FE07F" text-anchor="middle" dominant-baseline="hanging" font-weight="600">ON</text>
+  <text x="200" y="265" font-size="14" fill="#8FA3B5" text-anchor="middle" dominant-baseline="hanging">RLA</text>
+  <!-- Heizkessel -->
+  <rect x="20" y="36" width="130" height="250" rx="10" fill="#1E2630" stroke="#3A4652"/>
+  <rect x="65" y="37" width="40" height="248" fill="#2A3541"/>
+  <text x="85" y="128" font-size="14" fill="#8FA3B5" text-anchor="middle" dominant-baseline="hanging">OFEN</text>
+  <text x="85" y="150" font-size="24" fill="#fff" text-anchor="middle" dominant-baseline="hanging" font-weight="600">72.3 °C</text>
+  <rect x="65" y="236" width="40" height="22" rx="3" fill="#3A4652"/>
+  <text x="48" y="292" font-size="16" fill="#8FA3B5" dominant-baseline="hanging">Heizkessel</text>
+  <!-- Pufferspeicher -->
+  <rect x="340" y="36" width="130" height="250" rx="16" fill="#1E2630" stroke="#3A4652" stroke-width="2"/>
+  <rect x="348" y="44" width="110" height="230" rx="10" fill="url(#puffer)"/>
+  <text x="403" y="58" font-size="14" fill="#FFE0EC" text-anchor="middle" dominant-baseline="hanging">OBEN</text>
+  <text x="403" y="78" font-size="24" fill="#fff" text-anchor="middle" dominant-baseline="hanging" font-weight="600">44.3 °C</text>
+  <text x="403" y="214" font-size="14" fill="#DDF6FA" text-anchor="middle" dominant-baseline="hanging">UNTEN</text>
+  <text x="403" y="234" font-size="24" fill="#fff" text-anchor="middle" dominant-baseline="hanging" font-weight="600">43.1 °C</text>
+  <text x="352" y="292" font-size="16" fill="#8FA3B5" dominant-baseline="hanging">Pufferspeicher</text>
+  <!-- Seitenpunkte -->
+  <g><rect x="204" y="306" width="8" height="8" rx="4" fill="#FF8A3D"/><rect x="220" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="236" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="252" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="268" y="306" width="8" height="8" rx="4" fill="#3A4652"/></g>
+</svg>
