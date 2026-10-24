@@ -1,0 +1,322 @@
+# Pylontech Batterie System 2
+# Liest bis zu 10 Pylontech-Module (US5000 / US2000) über die Konsole des
+# Master-Akkus aus: Spannung, Strom, SOC, Temperatur und Zellspannung min/max.
+# Hardware: Wemos D1 mini + MAX3232-Modul (RS232 <-> TTL), Kabel an "Console".
+# Details und Verdrahtung: README.md
+
+esphome:
+  name: pylontech-batterie-system-2
+  friendly_name: Pylontech Batterie System 2
+
+esp8266:
+  board: d1_mini
+
+
+
+# Hardware-UART des D1 mini (GPIO1 = TX, GPIO3 = RX) -> MAX3232 -> Pylontech Console.
+# Das Log läuft deshalb über UART1 (siehe logger) bzw. per WLAN.
+uart:
+  - id: uart_pylontech
+    tx_pin: 1 # tx pin for pylontech uart
+    rx_pin: 3 # rx pin for pylontech uart
+    baud_rate: 115200 # baudrate for pylontech uart
+    rx_buffer_size: 2048
+    debug:
+      direction: BOTH
+      dummy_receiver: false
+      after:
+        delimiter: "\n"
+      sequence:
+        - lambda: UARTDebug::log_string(direction, bytes);
+
+
+# Enable logging
+logger:
+  hardware_uart: UART1
+
+pylontech:
+  - id: pylontech0
+    uart_id: uart_pylontech
+    update_interval: 20s
+
+
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret pylontech_batterie_system_2__encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret pylontech_batterie_system_2__ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Feste IP – an das eigene Netz anpassen oder den Block entfernen (DHCP)
+  manual_ip:
+    static_ip: 192.168.50.97
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Pylontech-Batterie-System-2"
+    password: !secret pylontech_batterie_system_2__ap_password
+
+captive_portal:
+    
+# Ein Block je Modul: 1 = Master, 2–10 = weitere Module im Stapel
+sensor:
+#Battery1
+  - platform: pylontech
+    battery: 1
+    voltage:
+      id: bat1_voltage
+      name: "Battery1 Voltage"
+    current:
+      id: bat1_current
+      name: "Battery1 Current"
+    coulomb:
+      name: "Battery1 State of Charge"
+    mos_temperature:
+      name: "Battery1 Temp Mosfet"
+    temperature:
+      name: "Battery1 Temperatur"
+    # Zellwerte von Battery1 (nicht vom ganzen System)
+    temperature_low:
+      name: "Battery1 Zelle min Temperatur"
+    temperature_high:
+      name: "Battery1 Zelle max Temperatur"
+    voltage_low:
+      name: "Battery1 Zelle min Spannung"
+    voltage_high:
+      name: "Battery1 Zelle max Spannung"
+# Battery2
+  - platform: pylontech
+    battery: 2
+    voltage:
+      id: bat2_voltage
+      name: "Battery2 Voltage"
+    current:
+      id: bat2_current
+      name: "Battery2 Current"
+    coulomb:
+      name: "Battery2 State of Charge"
+    temperature:
+      name: "Battery2 Temperatur"
+    voltage_low:
+      name: "Battery2 Zelle min Spannung"
+    voltage_high:
+      name: "Battery2 Zelle max Spannung"
+#Battery3
+  - platform: pylontech
+    battery: 3
+    voltage:
+      id: bat3_voltage
+      name: "Battery3 Voltage"
+    current:
+      id: bat3_current
+      name: "Battery3 Current"
+    coulomb:
+      name: "Battery3 State of Charge"
+    temperature:
+      name: "Battery3 Temperatur"
+    voltage_low:
+      name: "Battery3 Zelle min Spannung"
+    voltage_high:
+      name: "Battery3 Zelle max Spannung"
+#battery4
+  - platform: pylontech
+    battery: 4
+    voltage:
+      id: bat4_voltage
+      name: "Battery4 Voltage"
+    current:
+      id: bat4_current
+      name: "Battery4 Current"
+    coulomb:
+      name: "Battery4 State of Charge"
+    temperature:
+      name: "Battery4 Temperatur"
+    voltage_low:
+      name: "Battery4 Zelle min Spannung"
+    voltage_high:
+      name: "Battery4 Zelle max Spannung"
+#battery5
+  - platform: pylontech
+    battery: 5
+    voltage:
+      id: bat5_voltage
+      name: "Battery5 Voltage"
+    current:
+      id: bat5_current
+      name: "Battery5 Current"
+    coulomb:
+      name: "Battery5 State of Charge"
+    temperature:
+      name: "Battery5 Temperatur"
+    voltage_low:
+      name: "Battery5 Zelle min Spannung"
+    voltage_high:
+      name: "Battery5 Zelle max Spannung"
+#battery6
+  - platform: pylontech
+    battery: 6
+    voltage:
+      id: bat6_voltage
+      name: "Battery6 Voltage"
+    current:
+      id: bat6_current
+      name: "Battery6 Current"
+    coulomb:
+      name: "Battery6 State of Charge"
+    temperature:
+      name: "Battery6 Temperatur"
+    voltage_low:
+      name: "Battery6 Zelle min Spannung"
+    voltage_high:
+      name: "Battery6 Zelle max Spannung"
+#battery7
+  - platform: pylontech
+    battery: 7
+    voltage:
+      id: bat7_voltage
+      name: "Battery7 Voltage"
+    current:
+      id: bat7_current
+      name: "Battery7 Current"
+    coulomb:
+      name: "Battery7 State of Charge"
+    temperature:
+      name: "Battery7 Temperatur"
+    voltage_low:
+      name: "Battery7 Zelle min Spannung"
+    voltage_high:
+      name: "Battery7 Zelle max Spannung"
+#battery8
+  - platform: pylontech
+    battery: 8
+    voltage:
+      id: bat8_voltage
+      name: "Battery8 Voltage"
+    current:
+      id: bat8_current
+      name: "Battery8 Current"
+    coulomb:
+      name: "Battery8 State of Charge"
+    temperature:
+      name: "Battery8 Temperatur"
+    voltage_low:
+      name: "Battery8 Zelle min Spannung"
+    voltage_high:
+      name: "Battery8 Zelle max Spannung"
+#battery9
+  - platform: pylontech
+    battery: 9
+    voltage:
+      id: bat9_voltage
+      name: "Battery9 Voltage"
+    current:
+      id: bat9_current
+      name: "Battery9 Current"
+    coulomb:
+      name: "Battery9 State of Charge"
+    temperature:
+      name: "Battery9 Temperatur"
+    voltage_low:
+      name: "Battery9 Zelle min Spannung"
+    voltage_high:
+      name: "Battery9 Zelle max Spannung"
+#battery10
+  - platform: pylontech
+    battery: 10
+    voltage:
+      id: bat10_voltage
+      name: "Battery10 Voltage"
+    current:
+      id: bat10_current
+      name: "Battery10 Current"
+    coulomb:
+      name: "Battery10 State of Charge"
+    temperature:
+      name: "Battery10 Temperatur"
+    voltage_low:
+      name: "Battery10 Zelle min Spannung"
+    voltage_high:
+      name: "Battery10 Zelle max Spannung"
+  
+
+
+
+  - platform: template
+    id: pylontech_power
+    name: "Pylontech power"
+    unit_of_measurement: W
+    lambda: |-
+      // Akkus ohne Wert (NaN) werden übersprungen, sonst wäre die ganze Summe NaN
+      sensor::Sensor *volt[] = {id(bat1_voltage), id(bat2_voltage), id(bat3_voltage),
+                                id(bat4_voltage), id(bat5_voltage), id(bat6_voltage),
+                                id(bat7_voltage), id(bat8_voltage), id(bat9_voltage),
+                                id(bat10_voltage)};
+      sensor::Sensor *curr[] = {id(bat1_current), id(bat2_current), id(bat3_current),
+                                id(bat4_current), id(bat5_current), id(bat6_current),
+                                id(bat7_current), id(bat8_current), id(bat9_current),
+                                id(bat10_current)};
+      float pwr = 0.0f;
+      int count = 0;
+      for (int i = 0; i < 10; i++) {
+        if (!isnan(volt[i]->state) && !isnan(curr[i]->state)) {
+          pwr += volt[i]->state * curr[i]->state;
+          count++;
+        }
+      }
+      if (count == 0) {
+        return NAN;  // noch keine Daten von den Akkus
+      }
+      id(combined_charge_power).publish_state(pwr > 0.0f ? pwr : 0.0f);
+      id(combined_discharge_power).publish_state(pwr < 0.0f ? -pwr : 0.0f);
+      return pwr;
+    update_interval: 5s
+    device_class: power
+    state_class: measurement
+
+  - platform: template
+    id: combined_charge_power
+
+  - platform: template
+    id: combined_discharge_power
+
+  - platform: integration
+    name: "Pylontech charging"
+    sensor: combined_charge_power
+    time_unit: h
+    state_class: total_increasing
+    device_class: energy
+    unit_of_measurement: "Wh"
+
+  - platform: integration
+    name: "Pylontech discharging"
+    sensor: combined_discharge_power
+    time_unit: h
+    state_class: total_increasing
+    device_class: energy
+    unit_of_measurement: "Wh"
+
+text_sensor:
+  - platform: pylontech
+    pylontech_id: pylontech0
+    battery: 1
+
+    base_state:
+      id: bat1_base_state
+      name: "Battery1 Base State"
+    voltage_state:
+      id: bat1_voltage_state
+      name: "Battery1 Spannungs State"
+    current_state:
+      id: bat1_current_state
+      name: "Battery1 Strom State"
+    temperature_state:
+      id: bat1_temp_state
+      name: "Battery1 Temperatur State"

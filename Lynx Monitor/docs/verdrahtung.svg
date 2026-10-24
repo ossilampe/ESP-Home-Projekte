@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" width="960" height="500" font-family="Segoe UI, Roboto, Arial, sans-serif">
+  <rect x="0" y="0" width="960" height="500" rx="14" fill="#F6F8FA"/>
+  <text x="30" y="38" font-size="22" font-weight="700" fill="#1F2933">Lynx Monitor – Verdrahtung</text>
+  <text x="30" y="62" font-size="13" fill="#52606D">I²C über das RJ10-Kabel der Lynx Distributor · 50 kHz · schematisch</text>
+
+  <!-- D1 mini -->
+  <rect x="30" y="100" width="200" height="230" rx="12" fill="#1F6FB2"/>
+  <rect x="75" y="112" width="110" height="44" rx="4" fill="#C9D3DD"/>
+  <text x="130" y="139" font-size="12" font-weight="700" fill="#1F2933" text-anchor="middle">ESP8266</text>
+  <text x="130" y="182" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle">Wemos D1 mini</text>
+  <g font-size="13" fill="#FFFFFF" font-weight="600">
+    <text x="218" y="215" text-anchor="end">5V</text>
+    <text x="218" y="245" text-anchor="end">D2 · SDA</text>
+    <text x="218" y="275" text-anchor="end">D1 · SCL</text>
+    <text x="218" y="305" text-anchor="end">GND</text>
+  </g>
+  <g fill="#F5C542"><circle cx="230" cy="211" r="5"/><circle cx="230" cy="241" r="5"/><circle cx="230" cy="271" r="5"/><circle cx="230" cy="301" r="5"/></g>
+  <rect x="100" y="330" width="60" height="16" rx="3" fill="#8A97A6"/>
+  <text x="130" y="368" font-size="12" fill="#52606D" text-anchor="middle">Micro-USB ← 5-V-Netzteil</text>
+
+  <!-- Kabel zum RJ10 -->
+  <g stroke-width="3.5" fill="none" stroke-linecap="round">
+    <path d="M235 211 H330" stroke="#E2B714"/>
+    <path d="M235 241 H330" stroke="#2FA36B"/>
+    <path d="M235 271 H330" stroke="#E0663A"/>
+    <path d="M235 301 H330" stroke="#1F2933"/>
+  </g>
+  <rect x="330" y="196" width="46" height="120" rx="6" fill="#3A4652"/>
+  <text x="353" y="336" font-size="12" font-weight="700" fill="#1F2933" text-anchor="middle">RJ10</text>
+  <g font-size="11" fill="#52606D">
+    <text x="282" y="205" text-anchor="middle">gelb · 5 V</text>
+    <text x="282" y="235" text-anchor="middle">grün · DATA</text>
+    <text x="282" y="265" text-anchor="middle">rot/orange · CLK</text>
+    <text x="282" y="295" text-anchor="middle">schwarz · GND</text>
+  </g>
+
+  <!-- Lynx Distributor A/B/C -->
+  <g>
+    <rect x="410" y="110" width="160" height="200" rx="12" fill="#2F86C9"/>
+    <rect x="420" y="120" width="140" height="26" rx="5" fill="#1C2733"/>
+    <text x="490" y="138" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">Lynx Distributor A</text>
+    <text x="490" y="175" font-size="22" font-weight="700" fill="#FFFFFF" text-anchor="middle">0x08</text>
+    <text x="490" y="198" font-size="11" fill="#E6F1FA" text-anchor="middle">DIP 1 aus · DIP 2 aus</text>
+    <g fill="#F5C542"><rect x="428" y="215" width="26" height="40" rx="4"/><rect x="460" y="215" width="26" height="40" rx="4"/><rect x="492" y="215" width="26" height="40" rx="4"/><rect x="524" y="215" width="26" height="40" rx="4"/></g>
+    <text x="490" y="280" font-size="11" fill="#E6F1FA" text-anchor="middle">4 × MEGA-Sicherung</text>
+  </g>
+  <g>
+    <rect x="590" y="110" width="160" height="200" rx="12" fill="#2F86C9"/>
+    <rect x="600" y="120" width="140" height="26" rx="5" fill="#1C2733"/>
+    <text x="670" y="138" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">Lynx Distributor B</text>
+    <text x="670" y="175" font-size="22" font-weight="700" fill="#FFFFFF" text-anchor="middle">0x09</text>
+    <text x="670" y="198" font-size="11" fill="#E6F1FA" text-anchor="middle">DIP 1 an · DIP 2 aus</text>
+    <g fill="#F5C542"><rect x="608" y="215" width="26" height="40" rx="4"/><rect x="640" y="215" width="26" height="40" rx="4"/><rect x="672" y="215" width="26" height="40" rx="4"/><rect x="704" y="215" width="26" height="40" rx="4"/></g>
+    <text x="670" y="280" font-size="11" fill="#E6F1FA" text-anchor="middle">4 × MEGA-Sicherung</text>
+  </g>
+  <g>
+    <rect x="770" y="110" width="160" height="200" rx="12" fill="#2F86C9"/>
+    <rect x="780" y="120" width="140" height="26" rx="5" fill="#1C2733"/>
+    <text x="850" y="138" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">Lynx Distributor C</text>
+    <text x="850" y="175" font-size="22" font-weight="700" fill="#FFFFFF" text-anchor="middle">0x0A</text>
+    <text x="850" y="198" font-size="11" fill="#E6F1FA" text-anchor="middle">DIP 1 aus · DIP 2 an</text>
+    <g fill="#F5C542"><rect x="788" y="215" width="26" height="40" rx="4"/><rect x="820" y="215" width="26" height="40" rx="4"/><rect x="852" y="215" width="26" height="40" rx="4"/><rect x="884" y="215" width="26" height="40" rx="4"/></g>
+    <text x="850" y="280" font-size="11" fill="#E6F1FA" text-anchor="middle">4 × MEGA-Sicherung</text>
+  </g>
+
+  <!-- RJ10-Verbindungen -->
+  <g stroke="#3A4652" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M376 256 H410"/>
+    <path d="M570 256 H590"/>
+    <path d="M750 256 H770"/>
+  </g>
+  <text x="670" y="336" font-size="12" fill="#52606D" text-anchor="middle">weitere Distributor per RJ10-Kabel in Reihe (bis zu 4: 0x08–0x0B)</text>
+
+  <!-- Auswertung -->
+  <rect x="30" y="392" width="900" height="88" rx="8" fill="#FFFFFF" stroke="#D9E0E6"/>
+  <text x="48" y="418" font-size="13" font-weight="700" fill="#1F2933">Auswertung (lynx_sensor, alle 5 s)</text>
+  <text x="48" y="440" font-size="12" fill="#1F2933">Je Distributor wird 1 Byte gelesen: Bit 4…7 = Sicherung 1…4 (1 = defekt, 0 = OK).</text>
+  <text x="48" y="460" font-size="12" fill="#1F2933">Bit 1 = 1 bedeutet „DC-Bus ohne Spannung“ – dann sind die Sicherungswerte nicht aussagekräftig.</text>
+</svg>

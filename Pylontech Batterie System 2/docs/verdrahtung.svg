@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" font-family="Segoe UI, Roboto, Arial, sans-serif">
+  <rect x="0" y="0" width="960" height="470" rx="14" fill="#F6F8FA"/>
+  <text x="30" y="38" font-size="22" font-weight="700" fill="#1F2933">Pylontech Batterie System 2 – Verdrahtung</text>
+  <text x="30" y="62" font-size="13" fill="#52606D">Konsole des Master-Akkus · RS232 · 115200 Baud · schematisch</text>
+
+  <!-- D1 mini -->
+  <rect x="30" y="100" width="210" height="250" rx="12" fill="#1F6FB2"/>
+  <rect x="80" y="112" width="110" height="44" rx="4" fill="#C9D3DD"/>
+  <text x="135" y="139" font-size="12" font-weight="700" fill="#1F2933" text-anchor="middle">ESP8266</text>
+  <text x="135" y="182" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle">Wemos D1 mini</text>
+  <g font-size="13" fill="#FFFFFF" font-weight="600">
+    <text x="228" y="215" text-anchor="end">3V3</text>
+    <text x="228" y="245" text-anchor="end">GND</text>
+    <text x="228" y="275" text-anchor="end">TX · GPIO1</text>
+    <text x="228" y="305" text-anchor="end">RX · GPIO3</text>
+  </g>
+  <g fill="#F5C542"><circle cx="240" cy="211" r="5"/><circle cx="240" cy="241" r="5"/><circle cx="240" cy="271" r="5"/><circle cx="240" cy="301" r="5"/></g>
+  <rect x="105" y="350" width="60" height="16" rx="3" fill="#8A97A6"/>
+  <text x="135" y="388" font-size="12" fill="#52606D" text-anchor="middle">Micro-USB ← 5-V-Netzteil</text>
+
+  <!-- MAX3232 -->
+  <rect x="370" y="150" width="210" height="190" rx="10" fill="#2E7D4F"/>
+  <text x="475" y="178" font-size="17" font-weight="700" fill="#FFFFFF" text-anchor="middle">MAX3232-Modul</text>
+  <text x="475" y="196" font-size="11" fill="#D7F0E0" text-anchor="middle">TTL ⇄ RS232</text>
+  <g font-size="12" fill="#FFFFFF" font-weight="600">
+    <text x="382" y="215">VCC</text>
+    <text x="382" y="245">GND</text>
+    <text x="382" y="275">TX-Eingang</text>
+    <text x="382" y="305">RX-Ausgang</text>
+    <text x="568" y="245" text-anchor="end">GND</text>
+    <text x="568" y="275" text-anchor="end">RS232 TX</text>
+    <text x="568" y="305" text-anchor="end">RS232 RX</text>
+  </g>
+  <g fill="#F5C542"><circle cx="370" cy="211" r="5"/><circle cx="370" cy="241" r="5"/><circle cx="370" cy="271" r="5"/><circle cx="370" cy="301" r="5"/><circle cx="580" cy="241" r="5"/><circle cx="580" cy="271" r="5"/><circle cx="580" cy="301" r="5"/></g>
+
+  <!-- Leitungen ESP -> MAX3232 -->
+  <g stroke-width="3.5" fill="none" stroke-linecap="round">
+    <path d="M245 211 H365" stroke="#D64545"/>
+    <path d="M245 241 H365" stroke="#1F2933"/>
+    <path d="M245 271 H365" stroke="#2B7BD6"/>
+    <path d="M245 301 H365" stroke="#2FA36B"/>
+  </g>
+  <g font-size="11" fill="#52606D">
+    <text x="305" y="205" text-anchor="middle">3,3 V</text>
+    <text x="305" y="265" text-anchor="middle">ESP sendet</text>
+    <text x="305" y="295" text-anchor="middle">ESP empfängt</text>
+  </g>
+
+  <!-- Pylontech -->
+  <rect x="700" y="90" width="230" height="300" rx="10" fill="#E4E8EC" stroke="#9AA5B1" stroke-width="2"/>
+  <rect x="700" y="90" width="230" height="44" rx="10" fill="#3A4652"/>
+  <text x="815" y="118" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">Pylontech US5000 (Master)</text>
+  <rect x="722" y="196" width="88" height="130" rx="6" fill="#FFFFFF" stroke="#3A4652" stroke-width="2"/>
+  <text x="766" y="188" font-size="12" font-weight="700" fill="#1F2933" text-anchor="middle">Console (RJ45)</text>
+  <g font-size="12" fill="#1F2933" font-weight="600">
+    <text x="740" y="246">Pin 8 GND</text>
+    <text x="740" y="276">Pin 6 RX</text>
+    <text x="740" y="306">Pin 3 TX</text>
+  </g>
+  <g fill="#3A4652"><circle cx="726" cy="241" r="5"/><circle cx="726" cy="271" r="5"/><circle cx="726" cy="301" r="5"/></g>
+  <g font-size="11" fill="#52606D">
+    <text x="826" y="210">CAN / RS485</text>
+    <text x="826" y="225">→ Cerbo GX</text>
+    <text x="826" y="240">(bleibt wie es ist)</text>
+    <text x="826" y="290">Link-Ports</text>
+    <text x="826" y="305">→ Module 2–10</text>
+  </g>
+
+  <!-- Leitungen MAX3232 -> Pylontech -->
+  <g stroke-width="3.5" fill="none" stroke-linecap="round">
+    <path d="M585 241 H721" stroke="#1F2933"/>
+    <path d="M585 271 H721" stroke="#2B7BD6"/>
+    <path d="M585 301 H721" stroke="#2FA36B"/>
+  </g>
+  <g font-size="11" fill="#52606D">
+    <text x="652" y="265" text-anchor="middle">→ Akku RX</text>
+    <text x="652" y="295" text-anchor="middle">← Akku TX</text>
+  </g>
+
+  <!-- Legende -->
+  <g font-size="12" fill="#1F2933">
+    <rect x="30" y="412" width="900" height="40" rx="8" fill="#FFFFFF" stroke="#D9E0E6"/>
+    <line x1="48" y1="432" x2="76" y2="432" stroke="#D64545" stroke-width="4"/><text x="84" y="436">Versorgung 3,3 V</text>
+    <line x1="210" y1="432" x2="238" y2="432" stroke="#1F2933" stroke-width="4"/><text x="246" y="436">Masse</text>
+    <line x1="320" y1="432" x2="348" y2="432" stroke="#2B7BD6" stroke-width="4"/><text x="356" y="436">ESP TX → Akku RX</text>
+    <line x1="500" y1="432" x2="528" y2="432" stroke="#2FA36B" stroke-width="4"/><text x="536" y="436">Akku TX → ESP RX</text>
+    <text x="690" y="436" fill="#52606D">US2000B/US2000: RJ11 – Pin 3 TX, 2 RX, 4 GND</text>
+  </g>
+</svg>

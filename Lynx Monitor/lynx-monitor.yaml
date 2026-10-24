@@ -1,0 +1,104 @@
+# Lynx Monitor
+# Liest den Zustand der MEGA-Sicherungen von bis zu drei Victron Lynx Distributor
+# über deren I²C-Bus (RJ10) aus und meldet ihn an Home Assistant.
+# Hardware: Wemos D1 mini, RJ10-Kabel an den Lynx Distributor.
+# Details und Verdrahtung: README.md
+
+esphome:
+  name: lynx-monitor
+  friendly_name: Lynx Monitor
+  comment: Used to get the Status of the Lynx fuses
+
+esp8266:
+  board: d1_mini
+
+# Enable logging
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret lynx_monitor_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret lynx_monitor_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Feste IP – an das eigene Netz anpassen oder den Block entfernen (DHCP)
+  manual_ip:
+    static_ip: 192.168.50.133
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Lynx-Monitor Fallback Hotspot"
+    password: !secret lynx_monitor_ap_password
+
+captive_portal:
+
+
+web_server:
+  port: 80
+
+# I²C-Pins des Wemos D1 mini: D2=SDA, D1=SCL
+i2c:
+  sda: D2
+  scl: D1
+  frequency: 50000  # 50 kHz wie im Community-Post
+  scan: true
+
+# Eigene Komponente aus dem Ordner custom_components/lynx_sensor
+# (fragt die Lynx Distributor an 0x08, 0x09 und 0x0A alle 5 s ab)
+external_components:
+  - source:
+      type: local
+      path: custom_components
+    components: [lynx_sensor]
+
+lynx_sensor:
+  id: lynx_main
+
+binary_sensor:
+  - platform: template
+    name: "Lynx A Fuse 1 Broken"
+    lambda: "return id(lynx_main).fuse_a1->state;"
+  - platform: template
+    name: "Lynx A Fuse 2 Broken"
+    lambda: "return id(lynx_main).fuse_a2->state;"
+  - platform: template
+    name: "Lynx A Fuse 3 Broken"
+    lambda: "return id(lynx_main).fuse_a3->state;"
+  - platform: template
+    name: "Lynx A Fuse 4 Broken"
+    lambda: "return id(lynx_main).fuse_a4->state;"
+
+  - platform: template
+    name: "Lynx B Fuse 1 Broken"
+    lambda: "return id(lynx_main).fuse_b1->state;"
+  - platform: template
+    name: "Lynx B Fuse 2 Broken"
+    lambda: "return id(lynx_main).fuse_b2->state;"
+  - platform: template
+    name: "Lynx B Fuse 3 Broken"
+    lambda: "return id(lynx_main).fuse_b3->state;"
+  - platform: template
+    name: "Lynx B Fuse 4 Broken"
+    lambda: "return id(lynx_main).fuse_b4->state;"
+
+  - platform: template
+    name: "Lynx C Fuse 1 Broken"
+    lambda: "return id(lynx_main).fuse_c1->state;"
+  - platform: template
+    name: "Lynx C Fuse 2 Broken"
+    lambda: "return id(lynx_main).fuse_c2->state;"
+  - platform: template
+    name: "Lynx C Fuse 3 Broken"
+    lambda: "return id(lynx_main).fuse_c3->state;"
+  - platform: template
+    name: "Lynx C Fuse 4 Broken"
+    lambda: "return id(lynx_main).fuse_c4->state;"
