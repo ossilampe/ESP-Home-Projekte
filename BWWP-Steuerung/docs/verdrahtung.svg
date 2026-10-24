@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-family="Segoe UI, Roboto, Arial, sans-serif">
+  <rect x="0" y="0" width="960" height="560" rx="14" fill="#F6F8FA"/>
+  <text x="30" y="38" font-size="22" font-weight="700" fill="#1F2933">BWWP-Steuerung – Verdrahtung</text>
+  <text x="30" y="62" font-size="13" fill="#52606D">Servo drückt die Taste der Brauchwasser-Wärmepumpe · BH1750 liest deren Status-LED · schematisch</text>
+
+  <!-- D1 mini -->
+  <rect x="30" y="90" width="200" height="350" rx="12" fill="#1F6FB2"/>
+  <rect x="75" y="102" width="110" height="40" rx="4" fill="#C9D3DD"/>
+  <text x="130" y="127" font-size="12" font-weight="700" fill="#1F2933" text-anchor="middle">ESP8266</text>
+  <text x="130" y="170" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle">Wemos D1 mini</text>
+  <g font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="end">
+    <text x="218" y="204">5V</text><text x="218" y="234">3V3</text><text x="218" y="264">GND</text>
+    <text x="218" y="294">D3 · SDA</text><text x="218" y="324">D4 · SCL</text><text x="218" y="354">D7 · PWM</text>
+    <text x="218" y="384">D1</text><text x="218" y="414">D8</text>
+  </g>
+  <g fill="#F5C542"><circle cx="230" cy="200" r="5"/><circle cx="230" cy="230" r="5"/><circle cx="230" cy="260" r="5"/><circle cx="230" cy="290" r="5"/><circle cx="230" cy="320" r="5"/><circle cx="230" cy="350" r="5"/><circle cx="230" cy="380" r="5"/><circle cx="230" cy="410" r="5"/></g>
+  <text x="130" y="436" font-size="11" fill="#E6F1FA" text-anchor="middle">D2 = Status-LED (onboard)</text>
+
+  <!-- BH1750 -->
+  <rect x="560" y="90" width="220" height="130" rx="10" fill="#7B4FB8"/>
+  <text x="670" y="116" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">BH1750 (GY-302)</text>
+  <text x="670" y="134" font-size="11" fill="#EFE7FA" text-anchor="middle">auf die Status-LED der BWWP geklebt</text>
+  <g font-size="12" font-weight="600" fill="#FFFFFF"><text x="572" y="160">VCC</text><text x="572" y="178">GND</text><text x="572" y="196">SDA</text><text x="572" y="214">SCL</text></g>
+  <text x="768" y="214" font-size="11" fill="#EFE7FA" text-anchor="end">Adresse 0x23</text>
+  <g fill="#F5C542"><circle cx="560" cy="156" r="5"/><circle cx="560" cy="174" r="5"/><circle cx="560" cy="192" r="5"/><circle cx="560" cy="210" r="5"/></g>
+
+  <!-- Servo -->
+  <rect x="560" y="250" width="220" height="120" rx="10" fill="#2E7D4F"/>
+  <text x="670" y="276" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">Servo (z. B. SG90)</text>
+  <text x="670" y="294" font-size="11" fill="#D7F0E0" text-anchor="middle">drückt die Heizstab-Taste</text>
+  <g font-size="12" font-weight="600" fill="#FFFFFF"><text x="572" y="324">+5 V (rot)</text><text x="572" y="344">GND (braun)</text><text x="572" y="364">Signal (orange)</text></g>
+  <g fill="#F5C542"><circle cx="560" cy="320" r="5"/><circle cx="560" cy="340" r="5"/><circle cx="560" cy="360" r="5"/></g>
+
+  <!-- LEDs -->
+  <rect x="560" y="400" width="220" height="70" rx="10" fill="#B7791F"/>
+  <text x="670" y="424" font-size="15" font-weight="700" fill="#FFFFFF" text-anchor="middle">2 LEDs mit Vorwiderstand</text>
+  <g font-size="12" font-weight="600" fill="#FFFFFF"><text x="572" y="448">Lichtsensor-LED (D1)</text><text x="572" y="464">System-LED (D8)</text></g>
+  <g fill="#F5C542"><circle cx="560" cy="444" r="5"/><circle cx="560" cy="460" r="5"/></g>
+
+  <!-- Leitungen -->
+  <g stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M235 230 H330 V156 H555" stroke="#D64545"/>
+    <path d="M235 260 H350 V174 H555" stroke="#1F2933"/>
+    <path d="M235 290 H370 V192 H555" stroke="#2FA36B"/>
+    <path d="M235 320 H390 V210 H555" stroke="#E0663A"/>
+    <path d="M235 200 H310 V320 H555" stroke="#D64545" stroke-dasharray="7 5"/>
+    <path d="M350 260 V340 H555" stroke="#1F2933"/>
+    <path d="M235 350 H410 V360 H555" stroke="#E0A33A"/>
+    <path d="M235 380 H430 V444 H555" stroke="#B7791F"/>
+    <path d="M235 410 H450 V460 H555" stroke="#B7791F"/>
+  </g>
+
+  <!-- Legende -->
+  <rect x="30" y="486" width="900" height="56" rx="8" fill="#FFFFFF" stroke="#D9E0E6"/>
+  <g font-size="12" fill="#1F2933">
+    <line x1="48" y1="506" x2="76" y2="506" stroke="#D64545" stroke-width="4"/><text x="84" y="510">3,3 V (Sensor)</text>
+    <line x1="200" y1="506" x2="228" y2="506" stroke="#D64545" stroke-width="4" stroke-dasharray="7 5"/><text x="236" y="510">5 V (Servo)</text>
+    <line x1="330" y1="506" x2="358" y2="506" stroke="#1F2933" stroke-width="4"/><text x="366" y="510">Masse</text>
+    <line x1="430" y1="506" x2="458" y2="506" stroke="#2FA36B" stroke-width="4"/><text x="466" y="510">SDA</text>
+    <line x1="510" y1="506" x2="538" y2="506" stroke="#E0663A" stroke-width="4"/><text x="546" y="510">SCL</text>
+    <line x1="590" y1="506" x2="618" y2="506" stroke="#E0A33A" stroke-width="4"/><text x="626" y="510">Servo-Signal 50 Hz</text>
+    <text x="48" y="530" fill="#52606D">Der Servo zieht beim Anlaufen kurz viel Strom – bei Neustarts des ESP eine eigene 5-V-Versorgung bzw. einen Kondensator (z. B. 470 µF) vorsehen.</text>
+  </g>
+</svg>

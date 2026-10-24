@@ -1,0 +1,217 @@
+# Display Ofen
+# Kleines OLED-Display (SH1106, 128×64) am Ofen: zeigt im 3-s-Wechsel Außentemperatur,
+# Luftfeuchte, Puffer oben, Kamin-Vorlauf und den Solar-Akku – alles aus Home Assistant.
+# Details und Verdrahtung: README.md
+
+esphome:
+  name: display-ofen
+  friendly_name: Display Ofen
+
+esp8266:
+  board: d1_mini
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret display_ofen__encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret display_ofen__ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Feste IP – an das eigene Netz anpassen oder den Block entfernen (DHCP)
+  manual_ip:
+    static_ip: 192.168.50.101
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Display-Ofen"
+    password: !secret display_ofen__ap_password
+
+
+captive_portal:
+
+switch:
+##RESTART ESP
+  - platform: restart
+    name: "Display Ofen Restart"
+ 
+
+sensor:
+  - platform: homeassistant
+    name: "mittelwert Temperatur"
+    id: mittelwert_temperatur
+    entity_id: sensor.mittelwert_temperatur_aussen
+    internal: true
+
+  - platform: homeassistant
+    name: "mittelwert Feuchte"
+    id: mittelwert_feuchte
+    entity_id: sensor.mittelwert_huminity_aussen
+    internal: true
+
+  - platform: homeassistant
+    name: "Puffer_Oben"
+    id: pufferoben
+    entity_id: sensor.temperaturfuehler_puffer_oben_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    name: "Kamin"
+    id: kamin
+    entity_id: sensor.temperaturfuehler_puffer_2_temperaturfuehler_puffer_ofen2_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    name: "Solar-Akku"
+    id: solarakku
+    entity_id: sensor.victron_battery_soc
+    internal: true
+
+text_sensor:
+  - platform: homeassistant
+    entity_id: switch.warmepumpe_sensor
+    name: "zir"
+    id: zir
+
+  - platform: homeassistant
+    entity_id: switch.shelly_gas_brauchwasser_switch_0
+    name: "gas"
+    id: gas
+
+  - platform: homeassistant
+    entity_id: switch.shelly_waermepumpen_grid_switch_0
+    name: "grid"
+    id: grid 
+
+
+image:
+
+  - file: mdi:thermometer-auto 
+    type: binary
+    id: tempaicon
+    resize: 50x50  
+
+  - file: mdi:water-percent
+    type: binary
+    id: huminiaicon
+    resize: 50x50  
+
+  - file: mdi:water-boiler
+    type: binary
+    id: boilericon
+    resize: 50x50  
+
+  - file: mdi:gas-burner
+    type: binary
+    id: kaminicon
+    resize: 50x50  
+
+  - file: mdi:battery-charging-100
+    type: binary
+    id: akku100icon
+    resize: 50x50  
+  - file: mdi:battery-charging-70
+    type: binary
+    id: akku70icon
+    resize: 50x50
+  - file: mdi:battery-charging-50
+    type: binary
+    id: akku50icon
+    resize: 50x50
+  - file: mdi:battery-charging-30
+    type: binary
+    id: akku30icon
+    resize: 50x50
+  - file: mdi:battery-charging-10
+    type: binary
+    id: akku10icon
+    resize: 50x50
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto
+    size: 10
+  - file: "gfonts://Roboto"
+    id: roboto1
+    size: 12
+  - file: "gfonts://Roboto"
+    id: roboto2
+    size: 14
+  - file: "gfonts://Roboto"
+    id: roboto3
+    size: 20
+  - file: "gfonts://Roboto"
+    id: roboto4
+    size: 22
+
+    
+# Example configuration entry
+i2c:
+  sda: D2
+  scl: D1
+
+display:
+  - platform: ssd1306_i2c
+    model: "SH1106 128x64"
+    reset_pin: D0
+    address: 0x3C
+    rotation: 180°
+    update_interval: 20s
+
+    id: sensor_display
+    pages:
+      - id: page1
+        lambda: |-
+          it.printf(60, 20, id(roboto4), "%.1f °C",id(mittelwert_temperatur).state );
+          it.image(5, 0, id(tempaicon));
+
+      - id: page2
+        lambda: |-
+          it.printf(60, 20, id(roboto4), "%.1f %%", id(mittelwert_feuchte).state );
+          it.image(2, 0, id(huminiaicon));
+
+      - id: page3
+        lambda: |-
+          it.printf(60, 20, id(roboto4), "%.1f °C",id(pufferoben).state );
+          it.image(5, 0, id(boilericon));
+
+      - id: page4
+        lambda: |-
+          it.printf(60, 20, id(roboto4), "%.1f °C",id(kamin).state );
+          it.image(5, 0, id(kaminicon));
+
+      - id: page5
+        lambda: |-
+          
+
+          if (id(solarakku).state <= 50) {
+            it.image(5, 0, id(akku50icon));
+            it.printf(60, 20, id(roboto4), "%.1f %%",id(solarakku).state );
+
+          } else {
+            it.image(5, 0, id(akku100icon));
+            it.printf(60, 20, id(roboto4), "%.1f %%",id(solarakku).state );
+          }
+
+
+
+interval:
+  - interval: 3s
+    then:
+      - display.page.show_next: sensor_display
+      - component.update: sensor_display   
+
+
+
+
+
+    
