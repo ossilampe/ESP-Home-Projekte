@@ -14,7 +14,7 @@ Blättern geht per Tipp auf die linke bzw. rechte Bildschirmhälfte, unten zeige
 | 2 – Heizung | Heizkörper, Pumpen ZP-Gas und ZP-Puff, Temperaturen an Vor- und Rücklauf, Grenzwerte TO/TU mit −/+ einstellbar |
 | 3 – Wärmepumpe | BWWP ein/aus **und** ob sie wirklich läuft (60–900 W), Wassertemperatur, Leistung, Zu-/Abluft-Temperatur, Heizstab, Gas, Zirkulationspumpe |
 | 4 – Solar | PV-Leistung, Tagesertrag, Wechselrichterzustand, MultiPlus L1–L3 |
-| 5 – Akkus | SOC, Leistung, SOC-Limit, Temperatur, Busspannung und -strom |
+| 5 – Akkus | SOC, Leistung, SOC-Limit, Temperatur, Busspannung und -strom – darunter eine Zeile je Pylontech-Modul 1–10 mit SOC, Spannung, Strom, Zellspannung min/max und Temperatur (grüner Punkt = Modul liefert Daten) |
 
 | | |
 |---|---|
@@ -83,6 +83,7 @@ Pinbelegung siehe `heizung-display.yaml` (I²C SDA GPIO8 / SCL GPIO7, SPI CLK GP
 - `sensor.multiplus_ii_1_wechselrichter_ausgangsleistung_l1…l3`, `…_eingangsleistung_l1…l3`, `…_ausgangsstrom_l1…l3`, `…_ausgangsspannung_l1…l3`
 - `sensor.pylontech_battery_id_512_batterieladung`, `…_batterieleistung`, `…_batterietemperatur`, `…_dc_busspannung`, `…_dc_busstrom`
 - `sensor.victron_settings_ess_batterylife_soclimit`
+- je Modul 1–10: `sensor.pylontech_batterie_system_2_battery<N>_state_of_charge`, `…_voltage`, `…_current`, `…_temperatur`, `…_zelle_min_spannung`, `…_zelle_max_spannung` – kommen vom ESPHome-Gerät [Pylontech Batterie System 2](../Pylontech%20Batterie%20System%202)
 
 </details>
 
@@ -97,5 +98,5 @@ docs/                  Vorschaubilder der fünf Seiten
 
 ## Hinweise
 
-- Die Akku-Kacheln 1–10 auf Seite 5 sind Platzhalter (`-- %`), bis Einzelwerte pro Modul verfügbar sind.
+- Die Modulzeilen auf Seite 5 brauchen das Gerät [Pylontech Batterie System 2](../Pylontech%20Batterie%20System%202). Ohne es zeigen sie `--` und einen grauen Punkt, der Rest der Seite funktioniert trotzdem.
 - Die Farben folgen einem festen Schema: rot = Vorlauf/aus, blau = Rücklauf, grün = an/läuft, grau = unbekannt.

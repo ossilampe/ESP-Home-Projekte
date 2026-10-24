@@ -249,10 +249,10 @@ sensor:
               lv_label_set_text(wp_lauf_label, LV_SYMBOL_REFRESH " BETRIEB");
               lv_obj_set_style_text_color(wp_lauf_label, lv_color_hex(0xFFFFFF), 0);
             } else {
-              lv_obj_set_style_bg_color(wp_lauf_kasten, lv_color_hex(0x1E2630), 0);
-              lv_obj_set_style_border_color(wp_lauf_kasten, lv_color_hex(0x78909C), 0);
+              lv_obj_set_style_bg_color(wp_lauf_kasten, lv_color_hex(0x7A1F1F), 0);
+              lv_obj_set_style_border_color(wp_lauf_kasten, lv_color_hex(0xFF6B5B), 0);
               lv_label_set_text(wp_lauf_label, LV_SYMBOL_PAUSE " STEHT");
-              lv_obj_set_style_text_color(wp_lauf_label, lv_color_hex(0x78909C), 0);
+              lv_obj_set_style_text_color(wp_lauf_label, lv_color_hex(0xFFFFFF), 0);
             }
 
   - platform: homeassistant
@@ -268,6 +268,76 @@ sensor:
               snprintf(buf, sizeof(buf), "%.1f °C", x);
             }
             lv_label_set_text(wert_wp_temp, buf);
+
+  - platform: homeassistant
+    id: wp_zuluft
+    entity_id: sensor.shellyplus_temperatur_bwwp_lufteinlass_temperature
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "--.- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(wert_zuluft, buf);
+
+  - platform: homeassistant
+    id: wp_abluft
+    entity_id: sensor.shellyplus_temperatur_bwwp_luftauslass_temperature
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "--.- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(wert_abluft, buf);
+
+  - platform: homeassistant
+    id: temp_bw_gas_vl
+    entity_id: sensor.temperaturfuehler_puffer_3_temperaturfuehler_puffer_bw_gas_vorlauf_3_temperatur_ch1
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "--.-°");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f°", x);
+            }
+            lv_label_set_text(wert_bw_gas_vl, buf);
+
+  - platform: homeassistant
+    id: temp_hz_gas_vl
+    entity_id: sensor.temperaturfuehler_puffer_3_temperaturfuehler_puffer_heizung_gas_vorlauf_3_temperatur_ch2
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "--.-°");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f°", x);
+            }
+            lv_label_set_text(wert_hz_gas_vl, buf);
+
+  - platform: homeassistant
+    id: temp_rl2
+    entity_id: sensor.temperaturfuehler_puffer_2_temperaturfuehler_puffer_ruecklauf2_temperatur_ch2
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "--.-°");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f°", x);
+            }
+            lv_label_set_text(wert_rl2, buf);
 
   - platform: homeassistant
     id: grenze_to
@@ -604,6 +674,907 @@ sensor:
               snprintf(buf, sizeof(buf), "%.0f %%", x);
             }
             lv_label_set_text(ak_limit, buf);
+
+  # ----- Pylontech Module 1-10 (ESP Pylontech Batterie System 2) fuer Seite 5 -----
+  - platform: homeassistant
+    id: s_ak1_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery1_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak1_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak1_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak1_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak1_v
+    entity_id: sensor.pylontech_batterie_system_2_battery1_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak1_v, buf);
+
+  - platform: homeassistant
+    id: s_ak1_a
+    entity_id: sensor.pylontech_batterie_system_2_battery1_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak1_a, buf);
+
+  - platform: homeassistant
+    id: s_ak1_t
+    entity_id: sensor.pylontech_batterie_system_2_battery1_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak1_t, buf);
+
+  - platform: homeassistant
+    id: s_ak1_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery1_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak1_zmin).state;
+            float hi = id(s_ak1_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak1_z, buf);
+
+  - platform: homeassistant
+    id: s_ak1_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery1_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak1_zmin).state;
+            float hi = id(s_ak1_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak1_z, buf);
+
+  - platform: homeassistant
+    id: s_ak2_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery2_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak2_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak2_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak2_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak2_v
+    entity_id: sensor.pylontech_batterie_system_2_battery2_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak2_v, buf);
+
+  - platform: homeassistant
+    id: s_ak2_a
+    entity_id: sensor.pylontech_batterie_system_2_battery2_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak2_a, buf);
+
+  - platform: homeassistant
+    id: s_ak2_t
+    entity_id: sensor.pylontech_batterie_system_2_battery2_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak2_t, buf);
+
+  - platform: homeassistant
+    id: s_ak2_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery2_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak2_zmin).state;
+            float hi = id(s_ak2_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak2_z, buf);
+
+  - platform: homeassistant
+    id: s_ak2_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery2_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak2_zmin).state;
+            float hi = id(s_ak2_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak2_z, buf);
+
+  - platform: homeassistant
+    id: s_ak3_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery3_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak3_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak3_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak3_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak3_v
+    entity_id: sensor.pylontech_batterie_system_2_battery3_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak3_v, buf);
+
+  - platform: homeassistant
+    id: s_ak3_a
+    entity_id: sensor.pylontech_batterie_system_2_battery3_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak3_a, buf);
+
+  - platform: homeassistant
+    id: s_ak3_t
+    entity_id: sensor.pylontech_batterie_system_2_battery3_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak3_t, buf);
+
+  - platform: homeassistant
+    id: s_ak3_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery3_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak3_zmin).state;
+            float hi = id(s_ak3_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak3_z, buf);
+
+  - platform: homeassistant
+    id: s_ak3_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery3_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak3_zmin).state;
+            float hi = id(s_ak3_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak3_z, buf);
+
+  - platform: homeassistant
+    id: s_ak4_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery4_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak4_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak4_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak4_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak4_v
+    entity_id: sensor.pylontech_batterie_system_2_battery4_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak4_v, buf);
+
+  - platform: homeassistant
+    id: s_ak4_a
+    entity_id: sensor.pylontech_batterie_system_2_battery4_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak4_a, buf);
+
+  - platform: homeassistant
+    id: s_ak4_t
+    entity_id: sensor.pylontech_batterie_system_2_battery4_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak4_t, buf);
+
+  - platform: homeassistant
+    id: s_ak4_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery4_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak4_zmin).state;
+            float hi = id(s_ak4_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak4_z, buf);
+
+  - platform: homeassistant
+    id: s_ak4_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery4_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak4_zmin).state;
+            float hi = id(s_ak4_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak4_z, buf);
+
+  - platform: homeassistant
+    id: s_ak5_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery5_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak5_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak5_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak5_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak5_v
+    entity_id: sensor.pylontech_batterie_system_2_battery5_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak5_v, buf);
+
+  - platform: homeassistant
+    id: s_ak5_a
+    entity_id: sensor.pylontech_batterie_system_2_battery5_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak5_a, buf);
+
+  - platform: homeassistant
+    id: s_ak5_t
+    entity_id: sensor.pylontech_batterie_system_2_battery5_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak5_t, buf);
+
+  - platform: homeassistant
+    id: s_ak5_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery5_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak5_zmin).state;
+            float hi = id(s_ak5_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak5_z, buf);
+
+  - platform: homeassistant
+    id: s_ak5_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery5_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak5_zmin).state;
+            float hi = id(s_ak5_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak5_z, buf);
+
+  - platform: homeassistant
+    id: s_ak6_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery6_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak6_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak6_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak6_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak6_v
+    entity_id: sensor.pylontech_batterie_system_2_battery6_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak6_v, buf);
+
+  - platform: homeassistant
+    id: s_ak6_a
+    entity_id: sensor.pylontech_batterie_system_2_battery6_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak6_a, buf);
+
+  - platform: homeassistant
+    id: s_ak6_t
+    entity_id: sensor.pylontech_batterie_system_2_battery6_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak6_t, buf);
+
+  - platform: homeassistant
+    id: s_ak6_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery6_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak6_zmin).state;
+            float hi = id(s_ak6_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak6_z, buf);
+
+  - platform: homeassistant
+    id: s_ak6_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery6_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak6_zmin).state;
+            float hi = id(s_ak6_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak6_z, buf);
+
+  - platform: homeassistant
+    id: s_ak7_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery7_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak7_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak7_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak7_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak7_v
+    entity_id: sensor.pylontech_batterie_system_2_battery7_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak7_v, buf);
+
+  - platform: homeassistant
+    id: s_ak7_a
+    entity_id: sensor.pylontech_batterie_system_2_battery7_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak7_a, buf);
+
+  - platform: homeassistant
+    id: s_ak7_t
+    entity_id: sensor.pylontech_batterie_system_2_battery7_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak7_t, buf);
+
+  - platform: homeassistant
+    id: s_ak7_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery7_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak7_zmin).state;
+            float hi = id(s_ak7_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak7_z, buf);
+
+  - platform: homeassistant
+    id: s_ak7_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery7_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak7_zmin).state;
+            float hi = id(s_ak7_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak7_z, buf);
+
+  - platform: homeassistant
+    id: s_ak8_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery8_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak8_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak8_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak8_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak8_v
+    entity_id: sensor.pylontech_batterie_system_2_battery8_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak8_v, buf);
+
+  - platform: homeassistant
+    id: s_ak8_a
+    entity_id: sensor.pylontech_batterie_system_2_battery8_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak8_a, buf);
+
+  - platform: homeassistant
+    id: s_ak8_t
+    entity_id: sensor.pylontech_batterie_system_2_battery8_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak8_t, buf);
+
+  - platform: homeassistant
+    id: s_ak8_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery8_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak8_zmin).state;
+            float hi = id(s_ak8_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak8_z, buf);
+
+  - platform: homeassistant
+    id: s_ak8_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery8_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak8_zmin).state;
+            float hi = id(s_ak8_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak8_z, buf);
+
+  - platform: homeassistant
+    id: s_ak9_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery9_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak9_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak9_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak9_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak9_v
+    entity_id: sensor.pylontech_batterie_system_2_battery9_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak9_v, buf);
+
+  - platform: homeassistant
+    id: s_ak9_a
+    entity_id: sensor.pylontech_batterie_system_2_battery9_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak9_a, buf);
+
+  - platform: homeassistant
+    id: s_ak9_t
+    entity_id: sensor.pylontech_batterie_system_2_battery9_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak9_t, buf);
+
+  - platform: homeassistant
+    id: s_ak9_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery9_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak9_zmin).state;
+            float hi = id(s_ak9_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak9_z, buf);
+
+  - platform: homeassistant
+    id: s_ak9_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery9_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak9_zmin).state;
+            float hi = id(s_ak9_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak9_z, buf);
+
+  - platform: homeassistant
+    id: s_ak10_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery10_state_of_charge
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- %%");
+              lv_obj_set_style_bg_color(ak10_ok, lv_color_hex(0x3A4652), 0);
+            } else {
+              snprintf(buf, sizeof(buf), "%.0f %%", x);
+              lv_obj_set_style_bg_color(ak10_ok, lv_color_hex(0x3CCF5A), 0);
+            }
+            lv_label_set_text(ak10_soc, buf);
+
+  - platform: homeassistant
+    id: s_ak10_v
+    entity_id: sensor.pylontech_batterie_system_2_battery10_voltage
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- V");
+            } else {
+              snprintf(buf, sizeof(buf), "%.2f V", x);
+            }
+            lv_label_set_text(ak10_v, buf);
+
+  - platform: homeassistant
+    id: s_ak10_a
+    entity_id: sensor.pylontech_batterie_system_2_battery10_current
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- A");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f A", x);
+            }
+            lv_label_set_text(ak10_a, buf);
+
+  - platform: homeassistant
+    id: s_ak10_t
+    entity_id: sensor.pylontech_batterie_system_2_battery10_temperatur
+    on_value:
+      then:
+        - lambda: |-
+            char buf[16];
+            if (std::isnan(x)) {
+              snprintf(buf, sizeof(buf), "-- °C");
+            } else {
+              snprintf(buf, sizeof(buf), "%.1f °C", x);
+            }
+            lv_label_set_text(ak10_t, buf);
+
+  - platform: homeassistant
+    id: s_ak10_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery10_zelle_min_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak10_zmin).state;
+            float hi = id(s_ak10_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak10_z, buf);
+
+  - platform: homeassistant
+    id: s_ak10_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery10_zelle_max_spannung
+    on_value:
+      then:
+        - lambda: |-
+            char buf[24];
+            float lo = id(s_ak10_zmin).state;
+            float hi = id(s_ak10_zmax).state;
+            if (std::isnan(lo) || std::isnan(hi)) {
+              snprintf(buf, sizeof(buf), "--");
+            } else {
+              snprintf(buf, sizeof(buf), "%.3f/%.3f V", lo, hi);
+            }
+            lv_label_set_text(ak10_z, buf);
 
 text_sensor:
   - platform: homeassistant
@@ -1218,6 +2189,16 @@ lvgl:
               - 299, 100
             line_width: 4
             line_color: 0xC2185B
+        # ----- Temperatur Heizung-Gas-Vorlauf ueber der oberen roten Leitung -----
+        - label:
+            id: wert_hz_gas_vl
+            x: 232
+            y: 85
+            width: 64
+            text_align: CENTER
+            text: "--.-°"
+            text_font: montserrat_12
+            text_color: 0xFFE0EC
         - line:
             points:
               - 345, 58
@@ -1242,12 +2223,22 @@ lvgl:
         - line:
             points:
               - 138, 252
-              - 182, 252
+              - 218, 252
             line_width: 4
             line_color: 0x2CA3B8
+        # ----- Temperatur Ruecklauf ueber der blauen Leitung -----
+        - label:
+            id: wert_rl2
+            x: 142
+            y: 237
+            width: 72
+            text_align: CENTER
+            text: "--.-°"
+            text_font: montserrat_12
+            text_color: 0xDDF6FA
         - line:
             points:
-              - 218, 252
+              - 254, 252
               - 276, 252
             line_width: 4
             line_color: 0x2CA3B8
@@ -1327,7 +2318,7 @@ lvgl:
             text_color: 0x78909C
         - obj:
             id: zp_puff_kreis
-            x: 182
+            x: 218
             y: 232
             width: 36
             height: 40
@@ -1341,14 +2332,14 @@ lvgl:
             clickable: false
         - line:
             points:
-              - 208, 242
-              - 193, 252
-              - 208, 262
+              - 244, 242
+              - 229, 252
+              - 244, 262
             line_width: 3
             line_color: 0xFFFFFF
         - label:
             id: zp_puff_label
-            x: 160
+            x: 196
             y: 192
             width: 80
             text_align: CENTER
@@ -1719,7 +2710,7 @@ lvgl:
                   x: 0
                   y: 0
                   width: 140
-                  height: 72
+                  height: 88
                   radius: 0
                   bg_color: 0x2A3541
                   bg_opa: COVER
@@ -1730,15 +2721,38 @@ lvgl:
                   widgets:
                     - label:
                         id: wp_kopf_label
-                        align: CENTER
+                        align: TOP_MID
+                        y: 6
                         text_align: CENTER
                         text: "BWWP\n--"
                         text_font: montserrat_18
                         text_color: 0x78909C
+                    # ----- Betriebsanzeige: gruen = laeuft (60-900 W), rot = steht -----
+                    - obj:
+                        id: wp_lauf_kasten
+                        align: BOTTOM_MID
+                        y: -8
+                        width: 100
+                        height: 22
+                        radius: 11
+                        bg_color: 0x1E2630
+                        bg_opa: COVER
+                        border_width: 2
+                        border_color: 0x78909C
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        widgets:
+                          - label:
+                              id: wp_lauf_label
+                              align: CENTER
+                              text: "--"
+                              text_font: montserrat_12
+                              text_color: 0x78909C
               - obj:
                   id: wp_kopf_balken
                   x: 0
-                  y: 72
+                  y: 88
                   width: 140
                   height: 4
                   radius: 0
@@ -1748,14 +2762,14 @@ lvgl:
                   clickable: false
               - label:
                   align: TOP_MID
-                  y: 88
+                  y: 102
                   text: "WASSER"
                   text_font: montserrat_14
                   text_color: 0x8FA3B5
               - label:
                   id: wert_wp_temp
                   align: TOP_MID
-                  y: 108
+                  y: 122
                   text: "--.- °C"
                   text_font: montserrat_28
                   text_color: 0xFFFFFF
@@ -1763,44 +2777,51 @@ lvgl:
         # ----- Heizschlange (Rot -> Blau) -----
         - line:
             points:
-              - 190, 200
-              - 290, 214
+              - 190, 216
+              - 290, 230
             line_width: 3
             line_color: 0xE5484D
         - line:
             points:
-              - 290, 214
-              - 190, 228
+              - 290, 230
+              - 190, 244
             line_width: 3
             line_color: 0xC2569A
         - line:
             points:
-              - 190, 228
-              - 290, 242
+              - 190, 244
+              - 290, 258
             line_width: 3
             line_color: 0x8A66C9
         - line:
             points:
-              - 290, 242
-              - 190, 256
+              - 290, 258
+              - 190, 272
             line_width: 3
             line_color: 0x4A8BD9
-        # ----- Anschluesse Gas (rot Vorlauf, blau Ruecklauf) -----
+        # ----- Anschluesse Gas (rot Vorlauf, blau Ruecklauf) -> GAS unter STAB -----
         - line:
             points:
-              - 428, 100
-              - 428, 214
-              - 290, 214
+              - 364, 230
+              - 290, 230
             line_width: 4
             line_color: 0xC2185B
         - line:
             points:
-              - 456, 72
-              - 470, 72
-              - 470, 242
-              - 290, 242
+              - 364, 258
+              - 290, 258
             line_width: 4
             line_color: 0x2CA3B8
+        # ----- Temperatur BW-Gas-Vorlauf ueber der roten Leitung -----
+        - label:
+            id: wert_bw_gas_vl
+            x: 300
+            y: 214
+            width: 64
+            text_align: CENTER
+            text: "--.-°"
+            text_font: montserrat_12
+            text_color: 0xFFE0EC
         # ----- Vorlauf links mit Zirkulationspumpe, Zulauf kalt -----
         - line:
             points:
@@ -1913,34 +2934,12 @@ lvgl:
             text: "-- W"
             text_font: montserrat_18
             text_color: 0xFFD54F
-        # ----- Betriebsanzeige: gruen, wenn die BWWP wirklich laeuft (60-900 W) -----
-        - obj:
-            id: wp_lauf_kasten
-            x: 90
-            y: 74
-            width: 78
-            height: 20
-            radius: 10
-            bg_color: 0x1E2630
-            bg_opa: COVER
-            border_width: 2
-            border_color: 0x78909C
-            pad_all: 0
-            scrollable: false
-            clickable: false
-            widgets:
-              - label:
-                  id: wp_lauf_label
-                  align: CENTER
-                  text: "--"
-                  text_font: montserrat_12
-                  text_color: 0x78909C
 
         # ----- Gasofen -----
         - obj:
             id: gas_kasten
-            x: 400
-            y: 44
+            x: 364
+            y: 206
             width: 56
             height: 56
             radius: 10
@@ -1958,8 +2957,8 @@ lvgl:
                     entity_id: switch.relay_heizung_gas_bw_ch8
         - label:
             id: gas_label
-            x: 400
-            y: 55
+            x: 364
+            y: 217
             width: 56
             text_align: CENTER
             text: "GAS\n--"
@@ -1970,12 +2969,12 @@ lvgl:
         - line:
             points:
               - 310, 148
-              - 334, 148
+              - 364, 148
             line_width: 3
             line_color: 0xFFD54F
         - obj:
             id: stab_kasten
-            x: 334
+            x: 364
             y: 120
             width: 56
             height: 56
@@ -1994,12 +2993,66 @@ lvgl:
                     entity_id: button.bwwp_steuerung_turn_on
         - label:
             id: stab_label
-            x: 334
+            x: 364
             y: 131
             width: 56
             text_align: CENTER
             text: "STAB\n--"
             text_font: montserrat_16
+            text_color: 0xFFFFFF
+
+        # ----- Luftleitungen: Zuluft (blau, rein) / Abluft (grau, raus) -----
+        - line:
+            points:
+              - 310, 54
+              - 380, 54
+            line_width: 10
+            line_color: 0x4A8BD9
+        - line:
+            points:
+              - 324, 48
+              - 316, 54
+              - 324, 60
+            line_width: 2
+            line_color: 0xFFFFFF
+        - line:
+            points:
+              - 310, 92
+              - 380, 92
+            line_width: 10
+            line_color: 0x8FA3B5
+        - line:
+            points:
+              - 366, 86
+              - 374, 92
+              - 366, 98
+            line_width: 2
+            line_color: 0xFFFFFF
+        - label:
+            x: 386
+            y: 38
+            text: "ZULUFT"
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
+        - label:
+            id: wert_zuluft
+            x: 386
+            y: 52
+            text: "--.- °C"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
+        - label:
+            x: 386
+            y: 76
+            text: "ABLUFT"
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
+        - label:
+            id: wert_abluft
+            x: 386
+            y: 90
+            text: "--.- °C"
+            text_font: montserrat_18
             text_color: 0xFFFFFF
 
     - id: seite_4
@@ -2476,363 +3529,814 @@ lvgl:
             text: "-- A"
             text_font: montserrat_20
             text_color: 0xFFFFFF
+        # ----- Module 1-10: Nr, SOC, Spannung, Strom, Zelle min/max, Temperatur -----
+        - label:
+            x: 38
+            y: 124
+            text: "SOC"
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
+        - label:
+            x: 90
+            y: 124
+            text: "SPANNUNG"
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
+        - label:
+            x: 168
+            y: 124
+            text: "STROM"
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
+        - label:
+            x: 240
+            y: 124
+            text: "ZELLE MIN/MAX"
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
+        - label:
+            x: 360
+            y: 124
+            text: "TEMP."
+            text_font: montserrat_12
+            text_color: 0x8FA3B5
         - obj:
-            x: 42
-            y: 134
-            width: 20
-            height: 6
+            x: 12
+            y: 140
+            width: 456
+            height: 15
+            radius: 3
+            bg_color: 0x1E2630
+            bg_opa: COVER
+            border_width: 1
+            border_color: 0x2A3541
+            pad_all: 0
+            scrollable: false
+            clickable: false
+        - obj:
+            x: 15
+            y: 141
+            width: 18
+            height: 13
             radius: 2
-            bg_color: 0x8FA3B5
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
+        - label:
+            x: 15
+            y: 140
+            width: 18
+            text: "1"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
+        - label:
+            id: ak1_soc
+            x: 38
+            y: 139
+            text: "-- %"
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak1_v
+            x: 90
+            y: 139
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak1_a
+            x: 168
+            y: 139
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak1_z
+            x: 240
+            y: 139
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak1_t
+            x: 360
+            y: 139
+            text: "-- °C"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - obj:
+            id: ak1_ok
+            x: 452
+            y: 144
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
             clickable: false
         - obj:
             x: 12
-            y: 139
-            width: 84
-            height: 70
-            radius: 8
+            y: 156
+            width: 456
+            height: 15
+            radius: 3
             bg_color: 0x1E2630
             bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
+            border_width: 1
+            border_color: 0x2A3541
             pad_all: 0
             scrollable: false
             clickable: false
-        - label:
-            x: 20
-            y: 144
-            text: "Akku 1"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
-        - label:
-            id: akku1_soc
-            x: 20
-            y: 166
-            text: "-- %"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
         - obj:
-            x: 134
-            y: 134
-            width: 20
-            height: 6
+            x: 15
+            y: 157
+            width: 18
+            height: 13
             radius: 2
-            bg_color: 0x8FA3B5
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
-            clickable: false
-        - obj:
-            x: 104
-            y: 139
-            width: 84
-            height: 70
-            radius: 8
-            bg_color: 0x1E2630
-            bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
             pad_all: 0
-            scrollable: false
             clickable: false
         - label:
-            x: 112
-            y: 144
-            text: "Akku 2"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
+            x: 15
+            y: 156
+            width: 18
+            text: "2"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
         - label:
-            id: akku2_soc
-            x: 112
-            y: 166
+            id: ak2_soc
+            x: 38
+            y: 155
             text: "-- %"
-            text_font: montserrat_20
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak2_v
+            x: 90
+            y: 155
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak2_a
+            x: 168
+            y: 155
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak2_z
+            x: 240
+            y: 155
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak2_t
+            x: 360
+            y: 155
+            text: "-- °C"
+            text_font: montserrat_14
             text_color: 0xFFFFFF
         - obj:
-            x: 226
-            y: 134
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
-            bg_opa: COVER
-            border_width: 0
-            clickable: false
-        - obj:
-            x: 196
-            y: 139
-            width: 84
-            height: 70
-            radius: 8
-            bg_color: 0x1E2630
-            bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
-            pad_all: 0
-            scrollable: false
-            clickable: false
-        - label:
-            x: 204
-            y: 144
-            text: "Akku 3"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
-        - label:
-            id: akku3_soc
-            x: 204
-            y: 166
-            text: "-- %"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
-        - obj:
-            x: 318
-            y: 134
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
-            bg_opa: COVER
-            border_width: 0
-            clickable: false
-        - obj:
-            x: 288
-            y: 139
-            width: 84
-            height: 70
-            radius: 8
-            bg_color: 0x1E2630
-            bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
-            pad_all: 0
-            scrollable: false
-            clickable: false
-        - label:
-            x: 296
-            y: 144
-            text: "Akku 4"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
-        - label:
-            id: akku4_soc
-            x: 296
-            y: 166
-            text: "-- %"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
-        - obj:
-            x: 410
-            y: 134
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
-            bg_opa: COVER
-            border_width: 0
-            clickable: false
-        - obj:
-            x: 380
-            y: 139
-            width: 84
-            height: 70
-            radius: 8
-            bg_color: 0x1E2630
-            bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
-            pad_all: 0
-            scrollable: false
-            clickable: false
-        - label:
-            x: 388
-            y: 144
-            text: "Akku 5"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
-        - label:
-            id: akku5_soc
-            x: 388
-            y: 166
-            text: "-- %"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
-        - obj:
-            x: 42
-            y: 220
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
+            id: ak2_ok
+            x: 452
+            y: 160
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
             clickable: false
         - obj:
             x: 12
-            y: 225
-            width: 84
-            height: 70
-            radius: 8
+            y: 172
+            width: 456
+            height: 15
+            radius: 3
             bg_color: 0x1E2630
             bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
+            border_width: 1
+            border_color: 0x2A3541
             pad_all: 0
             scrollable: false
             clickable: false
+        - obj:
+            x: 15
+            y: 173
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
         - label:
-            x: 20
-            y: 230
-            text: "Akku 6"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
+            x: 15
+            y: 172
+            width: 18
+            text: "3"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
         - label:
-            id: akku6_soc
-            x: 20
-            y: 252
+            id: ak3_soc
+            x: 38
+            y: 171
             text: "-- %"
-            text_font: montserrat_20
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak3_v
+            x: 90
+            y: 171
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak3_a
+            x: 168
+            y: 171
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak3_z
+            x: 240
+            y: 171
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak3_t
+            x: 360
+            y: 171
+            text: "-- °C"
+            text_font: montserrat_14
             text_color: 0xFFFFFF
         - obj:
-            x: 134
-            y: 220
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
+            id: ak3_ok
+            x: 452
+            y: 176
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
             clickable: false
         - obj:
-            x: 104
-            y: 225
-            width: 84
-            height: 70
-            radius: 8
+            x: 12
+            y: 188
+            width: 456
+            height: 15
+            radius: 3
             bg_color: 0x1E2630
             bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
+            border_width: 1
+            border_color: 0x2A3541
             pad_all: 0
             scrollable: false
             clickable: false
+        - obj:
+            x: 15
+            y: 189
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
         - label:
-            x: 112
-            y: 230
-            text: "Akku 7"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
+            x: 15
+            y: 188
+            width: 18
+            text: "4"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
         - label:
-            id: akku7_soc
-            x: 112
-            y: 252
+            id: ak4_soc
+            x: 38
+            y: 187
             text: "-- %"
-            text_font: montserrat_20
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak4_v
+            x: 90
+            y: 187
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak4_a
+            x: 168
+            y: 187
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak4_z
+            x: 240
+            y: 187
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak4_t
+            x: 360
+            y: 187
+            text: "-- °C"
+            text_font: montserrat_14
             text_color: 0xFFFFFF
         - obj:
-            x: 226
-            y: 220
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
+            id: ak4_ok
+            x: 452
+            y: 192
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
             clickable: false
         - obj:
-            x: 196
-            y: 225
-            width: 84
-            height: 70
-            radius: 8
+            x: 12
+            y: 204
+            width: 456
+            height: 15
+            radius: 3
             bg_color: 0x1E2630
             bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
+            border_width: 1
+            border_color: 0x2A3541
             pad_all: 0
             scrollable: false
             clickable: false
+        - obj:
+            x: 15
+            y: 205
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
         - label:
-            x: 204
-            y: 230
-            text: "Akku 8"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
+            x: 15
+            y: 204
+            width: 18
+            text: "5"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
         - label:
-            id: akku8_soc
-            x: 204
-            y: 252
+            id: ak5_soc
+            x: 38
+            y: 203
             text: "-- %"
-            text_font: montserrat_20
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak5_v
+            x: 90
+            y: 203
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak5_a
+            x: 168
+            y: 203
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak5_z
+            x: 240
+            y: 203
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak5_t
+            x: 360
+            y: 203
+            text: "-- °C"
+            text_font: montserrat_14
             text_color: 0xFFFFFF
         - obj:
-            x: 318
-            y: 220
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
+            id: ak5_ok
+            x: 452
+            y: 208
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
             clickable: false
         - obj:
-            x: 288
-            y: 225
-            width: 84
-            height: 70
-            radius: 8
+            x: 12
+            y: 220
+            width: 456
+            height: 15
+            radius: 3
             bg_color: 0x1E2630
             bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
+            border_width: 1
+            border_color: 0x2A3541
             pad_all: 0
             scrollable: false
             clickable: false
+        - obj:
+            x: 15
+            y: 221
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
         - label:
-            x: 296
-            y: 230
-            text: "Akku 9"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
+            x: 15
+            y: 220
+            width: 18
+            text: "6"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
         - label:
-            id: akku9_soc
-            x: 296
-            y: 252
+            id: ak6_soc
+            x: 38
+            y: 219
             text: "-- %"
-            text_font: montserrat_20
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak6_v
+            x: 90
+            y: 219
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak6_a
+            x: 168
+            y: 219
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak6_z
+            x: 240
+            y: 219
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak6_t
+            x: 360
+            y: 219
+            text: "-- °C"
+            text_font: montserrat_14
             text_color: 0xFFFFFF
         - obj:
-            x: 410
-            y: 220
-            width: 20
-            height: 6
-            radius: 2
-            bg_color: 0x8FA3B5
+            id: ak6_ok
+            x: 452
+            y: 224
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
             bg_opa: COVER
             border_width: 0
             clickable: false
         - obj:
-            x: 380
-            y: 225
-            width: 84
-            height: 70
-            radius: 8
+            x: 12
+            y: 236
+            width: 456
+            height: 15
+            radius: 3
             bg_color: 0x1E2630
             bg_opa: COVER
-            border_width: 2
-            border_color: 0x3A4652
+            border_width: 1
+            border_color: 0x2A3541
             pad_all: 0
             scrollable: false
             clickable: false
+        - obj:
+            x: 15
+            y: 237
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
         - label:
-            x: 388
-            y: 230
-            text: "Akku 10"
-            text_font: montserrat_14
-            text_color: 0x8FA3B5
-        - label:
-            id: akku10_soc
-            x: 388
-            y: 252
-            text: "-- %"
-            text_font: montserrat_20
+            x: 15
+            y: 236
+            width: 18
+            text: "7"
+            text_align: CENTER
+            text_font: montserrat_12
             text_color: 0xFFFFFF
+        - label:
+            id: ak7_soc
+            x: 38
+            y: 235
+            text: "-- %"
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak7_v
+            x: 90
+            y: 235
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak7_a
+            x: 168
+            y: 235
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak7_z
+            x: 240
+            y: 235
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak7_t
+            x: 360
+            y: 235
+            text: "-- °C"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - obj:
+            id: ak7_ok
+            x: 452
+            y: 240
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            clickable: false
+        - obj:
+            x: 12
+            y: 252
+            width: 456
+            height: 15
+            radius: 3
+            bg_color: 0x1E2630
+            bg_opa: COVER
+            border_width: 1
+            border_color: 0x2A3541
+            pad_all: 0
+            scrollable: false
+            clickable: false
+        - obj:
+            x: 15
+            y: 253
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
+        - label:
+            x: 15
+            y: 252
+            width: 18
+            text: "8"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
+        - label:
+            id: ak8_soc
+            x: 38
+            y: 251
+            text: "-- %"
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak8_v
+            x: 90
+            y: 251
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak8_a
+            x: 168
+            y: 251
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak8_z
+            x: 240
+            y: 251
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak8_t
+            x: 360
+            y: 251
+            text: "-- °C"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - obj:
+            id: ak8_ok
+            x: 452
+            y: 256
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            clickable: false
+        - obj:
+            x: 12
+            y: 268
+            width: 456
+            height: 15
+            radius: 3
+            bg_color: 0x1E2630
+            bg_opa: COVER
+            border_width: 1
+            border_color: 0x2A3541
+            pad_all: 0
+            scrollable: false
+            clickable: false
+        - obj:
+            x: 15
+            y: 269
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
+        - label:
+            x: 15
+            y: 268
+            width: 18
+            text: "9"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
+        - label:
+            id: ak9_soc
+            x: 38
+            y: 267
+            text: "-- %"
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak9_v
+            x: 90
+            y: 267
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak9_a
+            x: 168
+            y: 267
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak9_z
+            x: 240
+            y: 267
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak9_t
+            x: 360
+            y: 267
+            text: "-- °C"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - obj:
+            id: ak9_ok
+            x: 452
+            y: 272
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            clickable: false
+        - obj:
+            x: 12
+            y: 284
+            width: 456
+            height: 15
+            radius: 3
+            bg_color: 0x1E2630
+            bg_opa: COVER
+            border_width: 1
+            border_color: 0x2A3541
+            pad_all: 0
+            scrollable: false
+            clickable: false
+        - obj:
+            x: 15
+            y: 285
+            width: 18
+            height: 13
+            radius: 2
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            clickable: false
+        - label:
+            x: 15
+            y: 284
+            width: 18
+            text: "10"
+            text_align: CENTER
+            text_font: montserrat_12
+            text_color: 0xFFFFFF
+        - label:
+            id: ak10_soc
+            x: 38
+            y: 283
+            text: "-- %"
+            text_font: montserrat_14
+            text_color: 0xFFD54F
+        - label:
+            id: ak10_v
+            x: 90
+            y: 283
+            text: "-- V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak10_a
+            x: 168
+            y: 283
+            text: "-- A"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak10_z
+            x: 240
+            y: 283
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - label:
+            id: ak10_t
+            x: 360
+            y: 283
+            text: "-- °C"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+        - obj:
+            id: ak10_ok
+            x: 452
+            y: 288
+            width: 7
+            height: 7
+            radius: 4
+            bg_color: 0x3A4652
+            bg_opa: COVER
+            border_width: 0
+            clickable: false

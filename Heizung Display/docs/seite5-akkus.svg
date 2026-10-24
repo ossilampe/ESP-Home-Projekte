@@ -7,24 +7,33 @@
     <text x="12" y="84">TEMPERATUR</text><text x="168" y="84">BUS SPANNUNG</text><text x="324" y="84">BUS STROM</text>
   </g>
   <g font-size="20" fill="#fff" dominant-baseline="hanging" font-weight="600">
-    <text x="12" y="56" fill="#FFD54F">36 %</text><text x="168" y="56">-4 W</text><text x="324" y="56">35 %</text>
-    <text x="12" y="100">22.4 °C</text><text x="168" y="100">49.4 V</text><text x="324" y="100">-0.1 A</text>
+    <text x="12" y="56" fill="#FFD54F">96 %</text><text x="168" y="56">-3763 W</text><text x="324" y="56">25 %</text>
+    <text x="12" y="100">24.1 °C</text><text x="168" y="100">50.4 V</text><text x="324" y="100">-74.8 A</text>
   </g>
-  <!-- Akku 1-10 -->
-  <g id="akku">
-    <rect x="42" y="134" width="20" height="6" rx="2" fill="#8FA3B5"/>
-    <rect x="12" y="139" width="84" height="70" rx="8" fill="#1E2630" stroke="#3A4652" stroke-width="2"/>
+  <!-- Module 1-10 -->
+  <g font-size="12" fill="#8FA3B5" dominant-baseline="hanging">
+    <text x="38" y="124">SOC</text><text x="90" y="124">SPANNUNG</text><text x="168" y="124">STROM</text><text x="240" y="124">ZELLE MIN/MAX</text><text x="360" y="124">TEMP.</text>
   </g>
-  <use href="#akku" x="92"/><use href="#akku" x="184"/><use href="#akku" x="276"/><use href="#akku" x="368"/>
-  <use href="#akku" y="86"/><use href="#akku" x="92" y="86"/><use href="#akku" x="184" y="86"/><use href="#akku" x="276" y="86"/><use href="#akku" x="368" y="86"/>
-  <g font-size="14" fill="#8FA3B5" dominant-baseline="hanging">
-    <text x="20" y="144">Akku 1</text><text x="112" y="144">Akku 2</text><text x="204" y="144">Akku 3</text><text x="296" y="144">Akku 4</text><text x="388" y="144">Akku 5</text>
-    <text x="20" y="230">Akku 6</text><text x="112" y="230">Akku 7</text><text x="204" y="230">Akku 8</text><text x="296" y="230">Akku 9</text><text x="388" y="230">Akku 10</text>
-  </g>
-  <g font-size="20" fill="#fff" dominant-baseline="hanging" font-weight="600">
-    <text x="20" y="166">-- %</text><text x="112" y="166">-- %</text><text x="204" y="166">-- %</text><text x="296" y="166">-- %</text><text x="388" y="166">-- %</text>
-    <text x="20" y="252">-- %</text><text x="112" y="252">-- %</text><text x="204" y="252">-- %</text><text x="296" y="252">-- %</text><text x="388" y="252">-- %</text>
-  </g>
+  <rect x="12.5" y="140.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="141" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="141" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">1</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="140" fill="#FFD54F">97 %</text><text x="90" y="140">50.45 V</text><text x="168" y="140">-13.4 A</text><text x="240" y="140">3.361/3.366 V</text><text x="360" y="140">22.8 °C</text></g><circle cx="455.5" cy="147.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="156.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="157" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="157" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">2</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="156" fill="#FFD54F">97 %</text><text x="90" y="156">50.46 V</text><text x="168" y="156">-10.3 A</text><text x="240" y="156">3.361/3.367 V</text><text x="360" y="156">23.1 °C</text></g><circle cx="455.5" cy="163.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="172.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="173" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="173" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">3</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="172" fill="#FFD54F">95 %</text><text x="90" y="172">50.43 V</text><text x="168" y="172">-2.7 A</text><text x="240" y="172">3.357/3.367 V</text><text x="360" y="172">26.1 °C</text></g><circle cx="455.5" cy="179.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="188.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="189" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="189" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">4</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="188" fill="#FFD54F">96 %</text><text x="90" y="188">50.43 V</text><text x="168" y="188">-2.5 A</text><text x="240" y="188">3.357/3.365 V</text><text x="360" y="188">24.6 °C</text></g><circle cx="455.5" cy="195.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="204.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="205" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="205" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">5</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="204" fill="#FFD54F">95 %</text><text x="90" y="204">50.43 V</text><text x="168" y="204">-2.4 A</text><text x="240" y="204">3.355/3.372 V</text><text x="360" y="204">28.3 °C</text></g><circle cx="455.5" cy="211.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="220.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="221" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="221" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">6</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="220" fill="#FFD54F">95 %</text><text x="90" y="220">50.43 V</text><text x="168" y="220">-1.7 A</text><text x="240" y="220">3.352/3.401 V</text><text x="360" y="220">32.1 °C</text></g><circle cx="455.5" cy="227.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="236.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="237" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="237" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">7</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="236" fill="#FFD54F">97 %</text><text x="90" y="236">50.45 V</text><text x="168" y="236">-3.3 A</text><text x="240" y="236">3.361/3.368 V</text><text x="360" y="236">23.7 °C</text></g><circle cx="455.5" cy="243.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="252.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="253" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="253" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">8</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="252" fill="#FFD54F">97 %</text><text x="90" y="252">50.84 V</text><text x="168" y="252">-2.9 A</text><text x="240" y="252">3.385/3.395 V</text><text x="360" y="252">23.4 °C</text></g><circle cx="455.5" cy="259.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="268.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="269" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="269" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">9</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="268" fill="#FFD54F">96 %</text><text x="90" y="268">50.84 V</text><text x="168" y="268">-1.9 A</text><text x="240" y="268">3.380/3.396 V</text><text x="360" y="268">25.5 °C</text></g><circle cx="455.5" cy="275.5" r="3.5" fill="#3CCF5A"/>
+  <rect x="12.5" y="284.5" width="455" height="14" rx="3" fill="#1E2630" stroke="#2A3541"/><rect x="15" y="285" width="18" height="13" rx="2" fill="#3A4652"/><text x="24" y="285" font-size="11" fill="#fff" text-anchor="middle" dominant-baseline="hanging">10</text>
+  <g font-size="13" fill="#fff" dominant-baseline="hanging"><text x="38" y="284" fill="#FFD54F">96 %</text><text x="90" y="284">50.84 V</text><text x="168" y="284">-2.9 A</text><text x="240" y="284">3.382/3.392 V</text><text x="360" y="284">23.7 °C</text></g><circle cx="455.5" cy="291.5" r="3.5" fill="#3CCF5A"/>
   <!-- Seitenpunkte -->
   <g><rect x="204" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="220" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="236" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="252" y="306" width="8" height="8" rx="4" fill="#3A4652"/><rect x="268" y="306" width="8" height="8" rx="4" fill="#FF8A3D"/></g>
 </svg>
