@@ -5,6 +5,7 @@ Meine [ESPHome](https://esphome.io)-Geräte für Home Assistant – jeweils mit 
 | Projekt | Hardware | Wofür |
 |---|---|---|
 | [Heizung Display](Heizung%20Display) | Waveshare ESP32-S3 Touch-LCD 3,5″ | Touch-Display für Ofen, Heizung, Wärmepumpe, Solar und Akkus (LVGL) |
+| [Display Buderus](Display%20Buderus) | LILYGO T-Display S3 + 2 Relais | Schaltet Gasheizung und Warmwasser-Zuheizen lokal per Taste, zeigt Temperaturen, Gaskosten und Puffer |
 | [Pylontech Batterie System 2](Pylontech%20Batterie%20System%202) | D1 mini + MAX3232 | Liest 10 Pylontech-Module über die Konsole aus |
 | [Lynx Monitor](Lynx%20Monitor) | D1 mini | Überwacht die MEGA-Sicherungen von 3 Victron Lynx Distributor (I²C) |
 | [BWWP-Steuerung](BWWP-Steuerung) | D1 mini + Servo + BH1750 | Drückt die Taste der Brauchwasser-Wärmepumpe und liest ihre Status-LED |

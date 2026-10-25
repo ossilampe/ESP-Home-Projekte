@@ -1,0 +1,641 @@
+esphome:
+  name: display-buderus
+  friendly_name: Display Buderus
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: wake_display
+
+# gleiche Basis wie das Waveshare-Display (laeuft stabil auf ESPHome 2026.10)
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  speed: 80MHz
+  mode: octal
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+# reboot_timeout 0s: ohne HA/WLAN NICHT neu starten, die Steuerung laeuft lokal weiter
+api:
+  reboot_timeout: 0s
+  encryption:
+    key: !secret display_buderus__encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret display_buderus__ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  reboot_timeout: 0s
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Lilygo-Testboard"
+    password: !secret display_buderus__ap_password
+
+captive_portal:
+
+
+# ---------------------------------------------------------------------------
+# Bedienlogik (komplett auf dem ESP)
+#   Taste 1 (GPIO21): Display wecken / naechste Seite (1 Uebersicht, 2 Temperaturen, 3 Gas, 4 Kosten, 5 Gesamt, 6 Puffer)
+#   Taste 2 (GPIO14): Seite "Gasheizung"  - erneut druecken schaltet "Gas unterdruecken" um
+#   Taste 3 (GPIO0) : Seite "Warmwasser"  - erneut druecken schaltet "WW zuheizen" um
+#   Nach 15 s ohne Tastendruck springt das Display von Seite 7/8 zurueck auf die Uebersicht.
+#   Displayschoner: nach "Displayschoner nach" Sekunden wird gedimmt und ein Ruhebild gezeigt.
+#   Im Schoner weckt der erste Tastendruck nur auf (schaltet nichts um).
+# ---------------------------------------------------------------------------
+globals:
+  - id: current_page
+    type: int
+    initial_value: '1'
+  - id: last_activity
+    type: uint32_t
+    initial_value: '0'
+  - id: schoner_aktiv
+    type: bool
+    initial_value: 'false'
+
+
+time:
+  - platform: homeassistant
+    id: esptime
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO21
+      inverted: False
+    name: "Button 1"
+    id: button1
+    internal: true
+    filters:
+      - delayed_on: 30ms
+    on_press:
+      then:
+        - lambda: |-
+            if (!id(schoner_aktiv) && id(backlight).current_values.is_on()) {
+              id(current_page) = (id(current_page) >= 6) ? 1 : id(current_page) + 1;
+            }
+            id(last_activity) = millis();
+        - script.execute: wake_display
+
+  - platform: gpio
+    pin:
+      number: GPIO14
+      inverted: true
+    name: "Button 2"
+    id: button2
+    internal: true
+    filters:
+      - delayed_on: 30ms
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: 'return !id(schoner_aktiv) && id(current_page) == 7 && id(backlight).current_values.is_on();'
+            then:
+              - switch.toggle: gas_unterdruecken
+        - lambda: |-
+            id(current_page) = 7;
+            id(last_activity) = millis();
+        - script.execute: wake_display
+
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: True
+    name: "Button 3"
+    id: button3
+    internal: true
+    filters:
+      - delayed_on: 30ms
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: 'return !id(schoner_aktiv) && id(current_page) == 8 && id(backlight).current_values.is_on();'
+            then:
+              - switch.toggle: ww_zuheizen
+        - lambda: |-
+            id(current_page) = 8;
+            id(last_activity) = millis();
+        - script.execute: wake_display
+
+
+  # Heizung Haus: 3-Wege-Ventil (Gas-Pumpe aus = Haus aus dem Puffer) und Zirkulationspumpe Puffer -> Haus
+  - platform: homeassistant
+    id: ventil_gas
+    entity_id: binary_sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_pumpe_gas_an_aus
+    internal: true
+  - platform: homeassistant
+    id: zp_puffer
+    entity_id: switch.keller_shelly_mit_addon_heizung_fur_zirkulation
+    internal: true
+
+
+# Relais: Zustand bleibt auch nach Stromausfall/Neustart erhalten, Aenderungen gehen automatisch an HA
+# (kein eigenes Display-Update hier: Tastendruck zeichnet einmal neu, Aenderungen aus HA erscheinen mit dem 1-s-Takt)
+switch:
+  - platform: gpio
+    pin: GPIO1
+    id: ww_zuheizen
+    name: "WW zuheizen"
+    icon: "mdi:water-boiler"
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: gpio
+    pin: GPIO2
+    id: gas_unterdruecken
+    name: "Gas unterdruecken"
+    icon: "mdi:gas-burner"
+    restore_mode: RESTORE_DEFAULT_OFF
+
+
+# Displayschoner in HA einstellbar (0 = aus, Display bleibt hell)
+number:
+  - platform: template
+    name: "Displayschoner nach"
+    id: schoner_nach
+    icon: "mdi:timer-outline"
+    unit_of_measurement: s
+    min_value: 0
+    max_value: 1800
+    step: 10
+    initial_value: 120
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    name: "Displayschoner Helligkeit"
+    id: schoner_hell
+    icon: "mdi:brightness-4"
+    unit_of_measurement: "%"
+    min_value: 1
+    max_value: 60
+    step: 1
+    initial_value: 15
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+script:
+  - id: wake_display
+    mode: restart
+    then:
+      - lambda: 'id(schoner_aktiv) = false;'
+      - light.turn_on:
+          id: backlight
+          brightness: 100%
+          transition_length: 0s
+      - component.update: disp
+      - if:
+          condition:
+            lambda: 'return id(schoner_nach).state > 0;'
+          then:
+            - delay: !lambda 'return (uint32_t) (id(schoner_nach).state * 1000);'
+            - lambda: |-
+                id(schoner_aktiv) = true;
+                id(current_page) = 1;
+            - light.turn_on:
+                id: backlight
+                brightness: !lambda 'return id(schoner_hell).state / 100.0f;'
+                transition_length: 2s
+            - component.update: disp
+
+
+output:
+  - platform: ledc
+    pin: GPIO38
+    id: gpio38
+    frequency: 2000
+
+light:
+  - platform: monochromatic
+    output: gpio38
+    name: "Backlight"
+    id: backlight
+    restore_mode: RESTORE_DEFAULT_ON
+
+image:
+  - file: "image/brenner_on.png"
+    type: rgb565
+    id: brenner_on
+    resize: 100x100
+  - file: "image/brenner_off.png"
+    type: rgb565
+    id: brenner_off
+    resize: 100x100
+  - file: "image/BWWP_Gas_On.png"
+    type: rgb565
+    id: bwwp_on
+    resize: 100x100
+  - file: "image/BWWP_Gas_Off.png"
+    type: rgb565
+    id: bwwp_off
+    resize: 100x100
+  - file: "image/wlan1.png"
+    type: rgb565
+    id: wlan
+    resize: 20x20
+
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto1
+    size: 30
+
+  - file: "gfonts://Roboto"
+    id: roboto2
+    size: 20
+    glyphsets: [GF_Latin_Kernel]  # Standard-Zeichensatz muss mit angegeben werden, sonst fehlt alles ausser €
+    glyphs: ["€"]
+
+  - file: "gfonts://Roboto"
+    id: roboto3
+    size: 25
+
+color:
+  - id: yellow
+    red: 100%
+    green: 100%
+    blue: 0%
+  - id: red
+    red: 100%
+    green: 0%
+    blue: 0%
+  - id: gren
+    red: 0%
+    green: 100%
+    blue: 0%
+  - id: cyan
+    red: 0%
+    green: 93%
+    blue: 93%
+  - id: grey
+    red: 55%
+    green: 55%
+    blue: 55%
+  - id: blue
+    red: 15%
+    green: 45%
+    blue: 100%
+  - id: orange
+    red: 100%
+    green: 55%
+    blue: 0%
+  - id: pink
+    red: 100%
+    green: 35%
+    blue: 65%
+  - id: dunkel
+    red: 12%
+    green: 12%
+    blue: 12%
+
+
+# Werte aus HA - nur Anzeige, die Steuerung haengt nicht davon ab
+sensor:
+  - platform: homeassistant
+    id: ofen
+    entity_id: sensor.temperaturfuehler_puffer_2_temperaturfuehler_puffer_ofen2_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    id: r_gas
+    entity_id: sensor.temperaturfuehler_puffer_2_temperaturfuehler_puffer_ruecklauf2_temperatur_ch2
+    internal: true
+
+  - platform: homeassistant
+    id: v_gas
+    entity_id: sensor.temperaturfuehler_puffer_3_temperaturfuehler_puffer_heizung_gas_vorlauf_3_temperatur_ch2
+    internal: true
+
+  - platform: homeassistant
+    id: v_bwwp
+    entity_id: sensor.temperaturfuehler_puffer_3_temperaturfuehler_puffer_bw_gas_vorlauf_3_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    id: puffer_o
+    entity_id: sensor.temperaturfuehler_puffer_oben_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    id: puffer_u
+    entity_id: sensor.temperaturfuehler_puffer_unten_temperatur_ch2
+    internal: true
+
+  - platform: homeassistant
+    id: zaehlertsand_gas
+    entity_id: sensor.zahlerstand
+    internal: true
+
+  - platform: homeassistant
+    id: verbrauch_heute_kwh
+    entity_id: sensor.verbrauch_energie_heute
+    internal: true
+
+  - platform: homeassistant
+    id: verbrauch_gestern_kwh
+    entity_id: sensor.verbrauch_energie_gestern
+    internal: true
+
+  - platform: homeassistant
+    id: verbrauch_vorgestern_kwh
+    entity_id: sensor.verbrauch_energie_vorgestern
+    internal: true
+
+  - platform: homeassistant
+    id: gaspreis
+    entity_id: input_number.gasreis_eingabe
+    internal: true
+
+  - platform: homeassistant
+    id: kosten_woche
+    entity_id: sensor.gas_kosten_woche
+    internal: true
+
+  - platform: homeassistant
+    id: kosten_monat
+    entity_id: sensor.gas_kosten_monat
+    internal: true
+
+  - platform: homeassistant
+    id: kosten_jahr
+    entity_id: sensor.gas_kosten_seit_stichtag
+    internal: true
+
+  - platform: homeassistant
+    id: puffer_oben_k
+    entity_id: sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_temperatur
+    internal: true
+
+  - platform: homeassistant
+    id: puffer_unten_k
+    entity_id: sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_temperatur_2
+    internal: true
+
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+
+# 8-Bit-Parallelbus des T-Display S3 (WR = GPIO8, D0-D7)
+spi:
+  type: octal
+  clk_pin: GPIO8
+  data_pins: [GPIO39, GPIO40, GPIO41, GPIO42, GPIO45, GPIO46, GPIO47, GPIO48]
+
+# Nativer ESPHome-Treiber (ersetzt die alte externe Komponente tdisplays3)
+# schaltet GPIO15 (LCD-Strom) und GPIO9 (RD) selbst ein
+text_sensor:
+  - platform: homeassistant
+    id: gas_stichtag
+    entity_id: input_datetime.gas_stichtag
+    internal: true
+
+
+display:
+  - platform: mipi_spi
+    model: T-DISPLAY-S3
+    id: disp
+    update_interval: 1s
+    rotation: 0
+    lambda: |-
+      const int W = 170;
+      bool online = api::global_api_server != nullptr && api::global_api_server->is_connected();
+
+      // Kopfzeile: WLAN / Offline + Uhrzeit
+      auto header = [&]() {
+        if (online) {
+          float dbm = id(wifi_signal_db).state;
+          int pct = isnan(dbm) ? 0 : std::max(0, std::min(100, (int) (2 * (dbm + 100))));
+          it.image(0, 0, id(wlan));
+          it.printf(24, 0, id(roboto2), "%d %%", pct);
+        } else {
+          it.print(0, 0, id(roboto2), id(red), "OFFLINE");
+        }
+        auto t = id(esptime).now();
+        if (t.is_valid()) {
+          it.strftime(W, 0, id(roboto2), TextAlign::TOP_RIGHT, "%H:%M", t);
+        } else {
+          it.print(W, 0, id(roboto2), TextAlign::TOP_RIGHT, "--:--");
+        }
+        it.line(0, 26, W, 26, id(cyan));
+      };
+
+      // Zeile "Name ........ Wert" (rechtsbuendig), "--" wenn kein Wert von HA
+      const int xl = 12;  // linker Textrand fuer alle Seiten (rechts vom Tasten-Balken)
+      auto row = [&](int y, const char *label, float v, const char *fmt) {
+        it.print(xl, y, id(roboto2), label);
+        if (isnan(v)) {
+          it.print(W - 2, y, id(roboto2), id(grey), TextAlign::TOP_RIGHT, "--");
+        } else {
+          it.printf(W - 2, y, id(roboto2), TextAlign::TOP_RIGHT, fmt, v);
+        }
+      };
+
+      // Anzeige der Gasheizung: true = Relais "Gas unterdruecken" AUS bedeutet Gasheizung AUS
+      // (falls falsch herum: auf false stellen - aendert nur die Anzeige, nicht die Steuerung)
+      const bool GAS_ANZEIGE_INVERTIERT = true;
+      bool gas_aus = GAS_ANZEIGE_INVERTIERT ? !id(gas_unterdruecken).state : id(gas_unterdruecken).state;
+      bool ww_gas = id(ww_zuheizen).state;
+
+      // Tastenmarkierung: farbiger Balken am linken Rand + Pfeil zur Taste
+      const int XM = 93;  // Mitte rechts vom Balken
+      auto tasten_marker = [&](int y, Color c) {
+        it.filled_rectangle(0, 30, 1, 290, c);
+        it.filled_triangle(0, y, 7, y - 6, 7, y + 6, c);
+      };
+
+      // Ueberschrift immer an derselben Stelle links, Balken + Pfeil in derselben Farbe
+      auto titel = [&](const char *text, Color c, int pfeil_y) {
+        tasten_marker(pfeil_y, c);
+        it.print(xl, 35, id(roboto3), c, text);
+      };
+
+      // Displayschoner: gedimmt, Brenner-Bild (mit rotem X wenn Gas aus), Uhrzeit und Puffer oben.
+      // Wandert jede Minute etwas nach unten, damit nicht immer dieselben Pixel leuchten.
+      if (id(schoner_aktiv)) {
+        auto t = id(esptime).now();
+        int dy = t.is_valid() ? (t.minute % 5) * 12 : 0;
+        it.image(W / 2, 30 + dy, gas_aus ? id(brenner_off) : id(brenner_on), ImageAlign::TOP_CENTER);
+        if (t.is_valid()) {
+          it.strftime(W / 2, 145 + dy, id(roboto1), TextAlign::TOP_CENTER, "%H:%M", t);
+        }
+        float po = id(puffer_o).state;
+        if (!isnan(po)) {
+          it.printf(W / 2, 185 + dy, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Puffer %.0f °C", po);
+        }
+        if (!online) {
+          it.print(W / 2, 212 + dy, id(roboto2), id(red), TextAlign::TOP_CENTER, "OFFLINE");
+        }
+        return;
+      }
+
+      header();
+
+      // Pfeil-Hoehe = Lage der Taste: Menue oben (70), Gasheizung Mitte (175), Warmwasser unten (290)
+      if (id(current_page) == 1) {
+        titel("Uebersicht", id(cyan), 70);
+        it.print(xl, 75, id(roboto2), "Gasheizung");
+        it.print(W - 2, 75, id(roboto2), gas_aus ? id(red) : id(gren), TextAlign::TOP_RIGHT, gas_aus ? "AUS" : "EIN");
+        it.print(xl, 105, id(roboto2), "WW mit Gas");
+        it.print(W - 2, 105, id(roboto2), ww_gas ? id(gren) : id(red), TextAlign::TOP_RIGHT, ww_gas ? "EIN" : "AUS");
+        it.line(xl, 140, W - 5, 140, id(grey));
+        row(155, "Ofen", id(ofen).state, "%.1f °C");
+        row(185, "PS.-O", id(puffer_o).state, "%.1f °C");
+        row(215, "PS.-U", id(puffer_u).state, "%.1f °C");
+        row(245, "V-Gas", id(v_gas).state, "%.1f °C");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "1 / 6");
+
+      } else if (id(current_page) == 2) {
+        titel("Temperaturen", id(red), 70);
+        row(75,  "Ofen",   id(ofen).state,     "%.1f °C");
+        row(105, "R-Gas",  id(r_gas).state,    "%.1f °C");
+        row(135, "V-Gas",  id(v_gas).state,    "%.1f °C");
+        row(165, "V-BWWP", id(v_bwwp).state,   "%.1f °C");
+        row(195, "PS.-O",  id(puffer_o).state, "%.1f °C");
+        row(225, "PS.-U",  id(puffer_u).state, "%.1f °C");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "2 / 6");
+
+      } else if (id(current_page) == 3) {
+        titel("Gas", id(yellow), 70);
+        row(75,  "ZS",      id(zaehlertsand_gas).state,         "%.1f");
+        row(105, "Heute",   id(verbrauch_heute_kwh).state,      "%.1f kWh");
+        row(135, "Gestern", id(verbrauch_gestern_kwh).state,    "%.1f kWh");
+        row(165, "Vorges.", id(verbrauch_vorgestern_kwh).state, "%.1f kWh");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "3 / 6");
+
+      } else if (id(current_page) == 4) {
+        // Kosten = Verbrauch (kWh) x Gaspreis aus HA (input_number.gasreis_eingabe)
+        float preis = id(gaspreis).state;
+        titel("Kosten", id(gren), 70);
+        row(75,  "Heute",   id(verbrauch_heute_kwh).state * preis,      "%.2f €");
+        row(105, "Gestern", id(verbrauch_gestern_kwh).state * preis,    "%.2f €");
+        row(135, "Vorges.", id(verbrauch_vorgestern_kwh).state * preis, "%.2f €");
+        it.line(xl, 170, W - 5, 170, id(grey));
+        row(185, "Preis",   preis,                                      "%.3f €");
+        it.print(W - 2, 208, id(roboto2), id(grey), TextAlign::TOP_RIGHT, "pro kWh");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "4 / 6");
+
+      } else if (id(current_page) == 5) {
+        // Gesamtkosten inkl. Grundkosten - berechnet in HA (sensor.gas_kosten_*)
+        titel("Gesamt", id(orange), 70);
+        row(75,  "Woche", id(kosten_woche).state, "%.2f €");
+        row(105, "Monat", id(kosten_monat).state, "%.2f €");
+        row(135, "Jahr",  id(kosten_jahr).state,  "%.2f €");
+        it.line(xl, 170, W - 5, 170, id(grey));
+        std::string st = id(gas_stichtag).state;
+        if (st.size() >= 10) {
+          it.printf(xl, 180, id(roboto2), id(grey), "Jahr ab %s.%s.", st.substr(8, 2).c_str(), st.substr(5, 2).c_str());
+        }
+        it.print(xl, 205, id(roboto2), id(grey), "inkl. Grundkosten");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "5 / 6");
+
+      } else if (id(current_page) == 6) {
+        // Puffer: Tank zeigt die echte Temperaturverteilung - oben Farbe von "oben", unten von "unten"
+        titel("Puffer", id(pink), 70);
+        float to = id(puffer_oben_k).state;
+        float tu = id(puffer_unten_k).state;
+        if (isnan(to)) to = tu;
+        if (isnan(tu)) tu = to;
+
+        // Temperatur -> Farbe: bis 30 °C blau, ab 70 °C rot, dazwischen Verlauf
+        auto temp_farbe = [](float t) {
+          float f = std::max(0.0f, std::min(1.0f, (t - 30.0f) / 40.0f));
+          return Color((uint8_t) (40 + 215 * f), (uint8_t) (70 * (1 - f) + 30 * f), (uint8_t) (255 * (1 - f)));
+        };
+
+        // Tank-Icon: weisser Rahmen, Fuellung als Farbverlauf von oben nach unten
+        const int TX = 20, TY = 72, TW = 46, TH = 150;
+        if (isnan(to)) {
+          it.filled_rectangle(TX, TY, TW, TH, id(dunkel));
+        } else {
+          for (int i = 0; i < TH; i++) {
+            float t = to + (tu - to) * i / (TH - 1);
+            it.horizontal_line(TX, TY + i, TW, temp_farbe(t));
+          }
+        }
+        it.rectangle(TX - 1, TY - 1, TW + 2, TH + 2, Color(255, 255, 255));
+        it.rectangle(TX - 2, TY - 2, TW + 4, TH + 4, Color(255, 255, 255));
+        it.filled_rectangle(TX + TW + 2, TY + 12, 8, 3, Color(255, 255, 255));       // Anschluss oben
+        it.filled_rectangle(TX + TW + 2, TY + TH - 15, 8, 3, Color(255, 255, 255));  // Anschluss unten
+
+        // Temperaturen rechts auf Hoehe Tank oben / unten, in derselben Farbe wie der Tank dort
+        if (isnan(id(puffer_oben_k).state)) it.print(W - 2, 72, id(roboto3), id(grey), TextAlign::TOP_RIGHT, "--");
+        else it.printf(W - 2, 72, id(roboto3), temp_farbe(id(puffer_oben_k).state), TextAlign::TOP_RIGHT, "%.1f°", id(puffer_oben_k).state);
+        if (isnan(id(puffer_unten_k).state)) it.print(W - 2, 197, id(roboto3), id(grey), TextAlign::TOP_RIGHT, "--");
+        else it.printf(W - 2, 197, id(roboto3), temp_farbe(id(puffer_unten_k).state), TextAlign::TOP_RIGHT, "%.1f°", id(puffer_unten_k).state);
+
+        // Pumpe Puffer -> Haus: Kreis mit Dreieck, gruen = an, rot = aus, grau = unbekannt
+        const Color WEISS(255, 255, 255);
+        const int PX = 126, PY = 147, PR = 22;
+        Color pumpe_farbe = !id(zp_puffer).has_state() ? id(grey) : (id(zp_puffer).state ? id(gren) : id(red));
+        it.filled_circle(PX, PY, PR, pumpe_farbe);
+        it.circle(PX, PY, PR, WEISS);
+        it.circle(PX, PY, PR + 1, WEISS);
+        it.filled_triangle(PX - 11, PY - 15, PX - 11, PY + 15, PX + PR, PY, WEISS);
+
+        // 3-Wege-Ventil aus drei Dreiecken: links Puffer (unter dem Tank), oben Haus, rechts Gas
+        // Ventil aus (Gas-Pumpe aus) = Haus aus dem Puffer: Puffer + Haus gruen, Gas rot
+        // Ventil an                  = Haus aus Gas:        Gas + Haus gruen, Puffer rot
+        const int VX = 88, VY = 280, VL = 16, VB = 10;
+        bool v_bekannt = id(ventil_gas).has_state();
+        bool v_gas = v_bekannt && id(ventil_gas).state;
+        Color c_gas    = !v_bekannt ? id(grey) : (v_gas ? id(gren) : id(red));
+        Color c_puffer = !v_bekannt ? id(grey) : (v_gas ? id(red) : id(gren));
+        Color c_haus   = !v_bekannt ? id(grey) : id(gren);
+        it.filled_triangle(VX - VL, VY - VB, VX - VL, VY + VB, VX, VY, c_puffer);  // links
+        it.filled_triangle(VX + VL, VY - VB, VX + VL, VY + VB, VX, VY, c_gas);     // rechts
+        it.filled_triangle(VX - VB, VY - VL, VX + VB, VY - VL, VX, VY, c_haus);    // oben
+        it.print(VX - VL - 4, VY - 11, id(roboto2), WEISS, TextAlign::TOP_RIGHT, "Puffer");
+        it.print(VX + VL + 4, VY - 11, id(roboto2), WEISS, "Gas");
+        it.print(VX, VY - VL - 23, id(roboto2), WEISS, TextAlign::TOP_CENTER, "Haus");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "6 / 6");
+
+      } else if (id(current_page) == 7) {
+        titel("Gasheizung", id(blue), 175);
+        if (gas_aus) {
+          it.print(XM, 80, id(roboto1), id(red), TextAlign::TOP_CENTER, "AUS");
+          it.image(XM, 135, id(brenner_off), ImageAlign::TOP_CENTER);
+        } else {
+          it.print(XM, 80, id(roboto1), id(gren), TextAlign::TOP_CENTER, "EIN");
+          it.image(XM, 135, id(brenner_on), ImageAlign::TOP_CENTER);
+        }
+        it.print(XM, 262, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Taste erneut");
+        it.print(XM, 285, id(roboto2), id(grey), TextAlign::TOP_CENTER, "= umschalten");
+
+      } else if (id(current_page) == 8) {
+        titel("Warmwasser", id(gren), 290);
+        if (ww_gas) {
+          it.print(XM, 80, id(roboto1), id(gren), TextAlign::TOP_CENTER, "EIN");
+          it.image(XM, 135, id(bwwp_on), ImageAlign::TOP_CENTER);
+        } else {
+          it.print(XM, 80, id(roboto1), id(red), TextAlign::TOP_CENTER, "AUS");
+          it.image(XM, 135, id(bwwp_off), ImageAlign::TOP_CENTER);
+        }
+        it.print(XM, 262, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Taste erneut");
+        it.print(XM, 285, id(roboto2), id(grey), TextAlign::TOP_CENTER, "= umschalten");
+      }
+
+
+# Von den Schaltseiten nach 15 s automatisch zurueck zur Uebersicht
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(current_page) >= 7 && millis() - id(last_activity) > 15000) {
+            id(current_page) = 1;
+          }
