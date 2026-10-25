@@ -257,7 +257,7 @@ font:
     id: roboto2
     size: 20
     glyphsets: [GF_Latin_Kernel]  # Standard-Zeichensatz muss mit angegeben werden, sonst fehlt alles ausser €
-    glyphs: ["€"]
+    glyphs: ["€", "³"]
 
   - file: "gfonts://Roboto"
     id: roboto3
@@ -512,10 +512,12 @@ display:
 
       } else if (id(current_page) == 3) {
         titel("Gas", id(yellow), 70);
-        row(75,  "ZS",      id(zaehlertsand_gas).state,         "%.1f");
-        row(105, "Heute",   id(verbrauch_heute_kwh).state,      "%.1f kWh");
-        row(135, "Gestern", id(verbrauch_gestern_kwh).state,    "%.1f kWh");
-        row(165, "Vorges.", id(verbrauch_vorgestern_kwh).state, "%.1f kWh");
+        it.print(W - 2, 40, id(roboto2), id(grey), TextAlign::TOP_RIGHT, "kWh");  // Einheit einmal oben statt in jeder Zeile
+        row(75,  "Heute",   id(verbrauch_heute_kwh).state,      "%.1f");
+        row(105, "Gestern", id(verbrauch_gestern_kwh).state,    "%.1f");
+        row(135, "Vorges.", id(verbrauch_vorgestern_kwh).state, "%.1f");
+        it.line(xl, 170, W - 5, 170, id(grey));
+        row(185, "ZS",      id(zaehlertsand_gas).state,         "%.1f m³");
         it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "3 / 6");
 
       } else if (id(current_page) == 4) {

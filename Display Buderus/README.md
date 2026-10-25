@@ -49,7 +49,7 @@ flowchart LR
 |---|---|
 | 1 Übersicht | Gasheizung EIN/AUS, Warmwasser mit Gas EIN/AUS, Ofen, Puffer oben/unten, Vorlauf Gas |
 | 2 Temperaturen | Ofen, Rücklauf Gas, Vorlauf Gas, Vorlauf BWWP, Puffer oben/unten |
-| 3 Gas | Zählerstand, Verbrauch heute/gestern/vorgestern in kWh |
+| 3 Gas | Verbrauch heute/gestern/vorgestern in kWh, darunter der Zählerstand in m³ |
 | 4 Kosten | Kosten heute/gestern/vorgestern = kWh × Gaspreis (rechnet der ESP), darunter der Gaspreis |
 | 5 Gesamt | Kosten Woche/Monat/Jahr inkl. Grundkosten (rechnet Home Assistant, siehe unten) |
 | 6 Puffer | Tank mit Farbverlauf nach echter Temperatur oben/unten (blau ≤ 30 °C, rot ≥ 70 °C), Pumpe Puffer → Haus (grün = an, rot = aus), 3-Wege-Ventil Puffer/Haus/Gas |
@@ -104,7 +104,7 @@ Der Gaszähler liefert nur Tageswerte, deshalb zählt Home Assistant die Zeiträ
 
 - **ESPHome 2026.10:** Das Display läuft mit dem eingebauten Treiber `mipi_spi` (Modell `T-DISPLAY-S3`) und dem Framework **ESP-IDF**. Die frühere externe Komponente `landonr/lilygo-tdisplays3-esphome` lässt sich mit aktuellen ESPHome-Versionen nicht mehr bauen.
 - **Nach einem OTA-Update mindestens eine Minute warten**, bevor man das Gerät neu startet: Erst dann gilt die neue Firmware als gut. Ein früher Neustart (oder ein Absturz) holt automatisch die alte Firmware zurück.
-- **Schrift mit €-Zeichen:** Gibt man bei einer Schrift `glyphs:` an, fällt der Standard-Zeichensatz weg – deshalb steht `glyphsets: [GF_Latin_Kernel]` mit dabei.
+- **Schrift mit € und ³:** Gibt man bei einer Schrift `glyphs:` an, fällt der Standard-Zeichensatz weg – deshalb steht `glyphsets: [GF_Latin_Kernel]` mit dabei.
 - **Anzeige Gasheizung:** `GAS_ANZEIGE_INVERTIERT` in der YAML legt fest, wie das Relais „Gas unterdruecken“ als EIN/AUS angezeigt wird. Die Steuerung selbst ändert das nicht.
 
 ## Dateien
