@@ -69,7 +69,9 @@ Alles sitzt auf der Platine, es muss nichts verdrahtet werden. Die Pins in der Y
 
 ## Gehäuse (3D-Druck)
 
-Die Teile liegen im Ordner [`druck/`](druck):
+Das Gehäuse gibt es auch auf **MakerWorld** zum direkten Drucken: [Touch Display for my desk](https://makerworld.com/de/models/3509065-touch-display-for-my-desk#profileId-4009542)
+
+Die Teile liegen außerdem im Ordner [`druck/`](druck):
 
 | Datei | Teil | Größe |
 |---|---|---|
