@@ -1,0 +1,481 @@
+# Board: Waveshare ESP32-S3-Touch-LCD-1.28 (16 MB QD, 2MB PSRAM)
+# Definition: definitions/boards/waveshare_esp32s3_touch_lcd_128/manifest.yaml
+#
+# Rundes 240x240-Display (GC9A01A) mit Touch (CST816S).
+# Zeigt wie das alte "Display Hans Ofen" im 3-Sekunden-Wechsel:
+#   Aussen-Temperatur, Feuchte, Puffer oben, Kamin, Solar-Akku
+# Beruehren: Gas-Verbrauch, Kosten und Gesamtkosten (wie Display Buderus Seite 4/5/6)
+# je ${verbrauch_sekunden} s, danach zurueck zum normalen Wechsel.
+# Nochmal beruehren = sofort naechste Verbrauchsseite.
+
+substitutions:
+  verbrauch_sekunden: "15"
+
+esphome:
+  name: display-hans-ofen-neu
+  friendly_name: Display Hans Ofen neu
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: quad
+  speed: 80MHz
+
+logger:
+
+api:
+  encryption:
+    key: !secret ofen_display_tisch__encryption_key
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: Display Hans Of Fallback Hotspot
+    password: !secret ofen_display_tisch__ap_password
+
+captive_portal:
+
+switch:
+  - platform: restart
+    name: "Restart"
+
+
+# ---------------------------------------------------------------------------
+# Seitensteuerung
+#   seite          0..4 = normale Anzeige (wechselt alle 3 s)
+#   verbrauch_seite 0 = aus, 1 = Gas kWh, 2 = Kosten, 3 = Gesamt
+globals:
+  - id: seite
+    type: int
+    initial_value: '0'
+  - id: verbrauch_seite
+    type: int
+    initial_value: '0'
+  - id: verbrauch_ab
+    type: uint32_t
+    initial_value: '0'
+
+interval:
+  - interval: 3s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(verbrauch_seite) == 0;'
+          then:
+            - lambda: 'id(seite) = (id(seite) + 1) % 5;'
+            - component.update: disp
+  # Verbrauchsseiten nach ${verbrauch_sekunden} s weiterschalten, nach der letzten zurueck
+  - interval: 250ms
+    then:
+      - if:
+          condition:
+            lambda: 'return id(verbrauch_seite) > 0 && millis() - id(verbrauch_ab) >= ${verbrauch_sekunden} * 1000;'
+          then:
+            - lambda: |-
+                id(verbrauch_seite) = id(verbrauch_seite) >= 3 ? 0 : id(verbrauch_seite) + 1;
+                id(verbrauch_ab) = millis();
+            - component.update: disp
+
+
+# ---------------------------------------------------------------------------
+# Hardware
+spi:
+  id: spi_display
+  clk_pin: GPIO10
+  mosi_pin: GPIO11
+  miso_pin: GPIO12
+
+i2c:
+  id: i2c_touch
+  sda: GPIO6
+  scl: GPIO7
+
+output:
+  - platform: ledc
+    pin: GPIO2
+    id: backlight_pwm
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Hintergrundbeleuchtung"
+    id: backlight
+    restore_mode: ALWAYS_ON
+
+touchscreen:
+  - platform: cst816
+    id: touch
+    i2c_id: i2c_touch
+    interrupt_pin: GPIO5
+    reset_pin: GPIO13
+    on_touch:
+      - lambda: |-
+          id(verbrauch_seite) = id(verbrauch_seite) >= 3 ? 0 : id(verbrauch_seite) + 1;
+          id(verbrauch_ab) = millis();
+      - component.update: disp
+
+
+# ---------------------------------------------------------------------------
+# Werte aus Home Assistant
+sensor:
+  - platform: homeassistant
+    id: aussen_temp
+    entity_id: sensor.mittelwert_temperatur_aussen
+    internal: true
+
+  - platform: homeassistant
+    id: aussen_feuchte
+    entity_id: sensor.mittelwert_huminity_aussen
+    internal: true
+
+  - platform: homeassistant
+    id: puffer_oben
+    entity_id: sensor.temperaturfuehler_puffer_oben_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    id: kamin
+    entity_id: sensor.temperaturfuehler_puffer_2_temperaturfuehler_puffer_ofen2_temperatur_ch1
+    internal: true
+
+  - platform: homeassistant
+    id: solar_akku
+    entity_id: sensor.victron_battery_soc
+    internal: true
+
+  # Verbrauch / Kosten (dieselben Quellen wie Display Buderus)
+  - platform: homeassistant
+    id: zaehlerstand_gas
+    entity_id: sensor.zahlerstand
+    internal: true
+
+  - platform: homeassistant
+    id: verbrauch_heute_kwh
+    entity_id: sensor.verbrauch_energie_heute
+    internal: true
+
+  - platform: homeassistant
+    id: verbrauch_gestern_kwh
+    entity_id: sensor.verbrauch_energie_gestern
+    internal: true
+
+  - platform: homeassistant
+    id: verbrauch_vorgestern_kwh
+    entity_id: sensor.verbrauch_energie_vorgestern
+    internal: true
+
+  - platform: homeassistant
+    id: gaspreis
+    entity_id: input_number.gasreis_eingabe
+    internal: true
+
+  - platform: homeassistant
+    id: kosten_woche
+    entity_id: sensor.gas_kosten_woche
+    internal: true
+
+  - platform: homeassistant
+    id: kosten_monat
+    entity_id: sensor.gas_kosten_monat
+    internal: true
+
+  - platform: homeassistant
+    id: kosten_jahr
+    entity_id: sensor.gas_kosten_seit_stichtag
+    internal: true
+
+text_sensor:
+  - platform: homeassistant
+    id: gas_stichtag
+    entity_id: input_datetime.gas_stichtag
+    internal: true
+
+
+# ---------------------------------------------------------------------------
+# Icons (MDI, einfarbig gespeichert, werden beim Zeichnen bunt eingefaerbt)
+image:
+  - file: mdi:thermometer
+    id: ic_temp
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:water-percent
+    id: ic_feuchte
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:water-boiler
+    id: ic_puffer
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:fireplace
+    id: ic_kamin
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:battery-charging-100
+    id: ic_akku100
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:battery-charging-70
+    id: ic_akku70
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:battery-charging-50
+    id: ic_akku50
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:battery-charging-30
+    id: ic_akku30
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  - file: mdi:battery-charging-10
+    id: ic_akku10
+    type: binary
+    transparency: chroma_key
+    resize: 72x72
+  # Verbrauchsseiten
+  - file: mdi:fire
+    id: ic_gas
+    type: binary
+    transparency: chroma_key
+    resize: 40x40
+  - file: mdi:currency-eur
+    id: ic_euro
+    type: binary
+    transparency: chroma_key
+    resize: 40x40
+  - file: mdi:calendar-month
+    id: ic_kalender
+    type: binary
+    transparency: chroma_key
+    resize: 40x40
+
+font:
+  # grosse Zahl in der Mitte
+  - file: "gfonts://Roboto@500"
+    id: f_wert
+    size: 44
+    glyphs: ["0123456789.,-+% °C"]
+
+  - file: "gfonts://Roboto"
+    id: f_text
+    size: 20
+    glyphsets: [GF_Latin_Kernel]  # Standard-Zeichensatz muss mit angegeben werden, sonst fehlt alles ausser €
+    glyphs: ["€", "³"]
+
+  - file: "gfonts://Roboto@500"
+    id: f_titel
+    size: 24
+
+color:
+  - id: grau
+    red: 55%
+    green: 55%
+    blue: 55%
+  - id: hellgrau
+    red: 85%
+    green: 85%
+    blue: 85%
+  - id: dunkel
+    red: 14%
+    green: 14%
+    blue: 14%
+  - id: gelb
+    red: 100%
+    green: 85%
+    blue: 0%
+  - id: gruen
+    red: 15%
+    green: 90%
+    blue: 30%
+  - id: orange
+    red: 100%
+    green: 55%
+    blue: 0%
+  - id: tuerkis
+    red: 0%
+    green: 75%
+    blue: 100%
+  - id: rot
+    red: 100%
+    green: 15%
+    blue: 10%
+
+
+# ---------------------------------------------------------------------------
+display:
+  - platform: mipi_spi
+    model: GC9A01A
+    id: disp
+    spi_id: spi_display
+    cs_pin: GPIO9
+    dc_pin: GPIO8
+    reset_pin: GPIO14
+    # Falls die Farben vertauscht sind (weisser Hintergrund): invert_colors auf false,
+    # falls rot und blau vertauscht sind: color_order auf rgb
+    invert_colors: true
+    color_order: bgr
+    update_interval: 1s
+    lambda: |-
+      const int CX = 120, CY = 120;
+      bool online = api::global_api_server != nullptr && api::global_api_server->is_connected();
+
+      it.fill(Color::BLACK);
+
+      // Farbverlauf blau -> tuerkis -> gruen -> gelb -> rot (f = 0..1)
+      auto verlauf = [](float f) -> Color {
+        static const uint8_t st[5][3] = {{40, 90, 255}, {0, 210, 230}, {30, 220, 60}, {255, 210, 0}, {255, 40, 20}};
+        f = std::max(0.0f, std::min(1.0f, f)) * 4.0f;
+        int i = std::min(3, (int) f);
+        float t = f - i;
+        return Color((uint8_t) (st[i][0] + (st[i + 1][0] - st[i][0]) * t),
+                     (uint8_t) (st[i][1] + (st[i + 1][1] - st[i][1]) * t),
+                     (uint8_t) (st[i][2] + (st[i + 1][2] - st[i][2]) * t));
+      };
+
+      // Ring am Rand: 270 Grad, unten offen. Gefuellter Teil = anteil (0..1).
+      // farbe_fest = true: alles in "farbe", sonst Farbverlauf (umgekehrt: gruen voll, rot leer)
+      auto ring = [&](float anteil, bool farbe_fest, Color farbe, bool umgekehrt) {
+        if (isnan(anteil)) anteil = 0;
+        const float span = 270.0f;
+        for (float a = 0; a <= span; a += 3.0f) {
+          float rad = (135.0f + a) * M_PI / 180.0f;
+          int x = CX + cosf(rad) * 110;
+          int y = CY + sinf(rad) * 110;
+          float pos = a / span;
+          Color c = id(dunkel);
+          if (pos <= anteil) c = farbe_fest ? farbe : verlauf(umgekehrt ? 1.0f - pos : pos);
+          it.filled_circle(x, y, 5, c);
+        }
+      };
+
+      auto anteil_von = [](float v, float lo, float hi) -> float {
+        if (isnan(v)) return NAN;
+        return std::max(0.0f, std::min(1.0f, (v - lo) / (hi - lo)));
+      };
+
+      // Punkte unten fuer die aktuelle Seite
+      auto punkte = [&](int anzahl, int aktiv, Color c) {
+        for (int i = 0; i < anzahl; i++) {
+          int x = CX + (i * 2 - (anzahl - 1)) * 7;
+          it.filled_circle(x, 214, 3, i == aktiv ? c : id(dunkel));
+        }
+      };
+
+      // ===================== Verbrauchsseiten (nach Beruehren) =====================
+      if (id(verbrauch_seite) > 0) {
+        int vs = id(verbrauch_seite);
+        Color c = vs == 1 ? id(gelb) : vs == 2 ? id(gruen) : id(orange);
+
+        // Ring zeigt die verbleibende Zeit dieser Seite
+        float rest = 1.0f - (float) (millis() - id(verbrauch_ab)) / (${verbrauch_sekunden} * 1000.0f);
+        ring(std::max(0.0f, rest), true, c, false);
+
+        auto *icon = vs == 1 ? id(ic_gas) : vs == 2 ? id(ic_euro) : id(ic_kalender);
+        const char *titel = vs == 1 ? "Gas kWh" : vs == 2 ? "Kosten" : "Gesamt";
+        it.image(CX, 22, icon, ImageAlign::TOP_CENTER, c);
+        it.print(CX, 62, id(f_titel), c, TextAlign::TOP_CENTER, titel);
+
+        // Zeile "Name ...... Wert", "--" wenn kein Wert von HA
+        const int XL = 40, XR = 200;
+        auto row = [&](int y, const char *label, float v, const char *fmt) {
+          it.print(XL, y, id(f_text), Color::WHITE, label);
+          if (isnan(v)) it.print(XR, y, id(f_text), id(grau), TextAlign::TOP_RIGHT, "--");
+          else it.printf(XR, y, id(f_text), Color::WHITE, TextAlign::TOP_RIGHT, fmt, v);
+        };
+
+        if (vs == 1) {
+          row(96,  "Heute",   id(verbrauch_heute_kwh).state,      "%.1f");
+          row(122, "Gestern", id(verbrauch_gestern_kwh).state,    "%.1f");
+          row(148, "Vorges.", id(verbrauch_vorgestern_kwh).state, "%.1f");
+          it.line(50, 177, 190, 177, id(grau));
+          float zs = id(zaehlerstand_gas).state;
+          if (isnan(zs)) it.print(CX, 184, id(f_text), id(grau), TextAlign::TOP_CENTER, "ZS --");
+          else it.printf(CX, 184, id(f_text), id(grau), TextAlign::TOP_CENTER, "ZS %.1f m³", zs);
+
+        } else if (vs == 2) {
+          // Kosten = Verbrauch (kWh) x Gaspreis aus HA
+          float preis = id(gaspreis).state;
+          row(96,  "Heute",   id(verbrauch_heute_kwh).state * preis,      "%.2f €");
+          row(122, "Gestern", id(verbrauch_gestern_kwh).state * preis,    "%.2f €");
+          row(148, "Vorges.", id(verbrauch_vorgestern_kwh).state * preis, "%.2f €");
+          it.line(50, 177, 190, 177, id(grau));
+          if (!isnan(preis)) it.printf(CX, 184, id(f_text), id(grau), TextAlign::TOP_CENTER, "%.3f €/kWh", preis);
+
+        } else {
+          // Gesamtkosten inkl. Grundkosten - berechnet in HA (sensor.gas_kosten_*)
+          row(96,  "Woche", id(kosten_woche).state, "%.2f €");
+          row(122, "Monat", id(kosten_monat).state, "%.2f €");
+          row(148, "Jahr",  id(kosten_jahr).state,  "%.2f €");
+          it.line(50, 177, 190, 177, id(grau));
+          std::string st = id(gas_stichtag).state;
+          if (st.size() >= 10) {
+            it.printf(CX, 184, id(f_text), id(grau), TextAlign::TOP_CENTER, "ab %s.%s. inkl. GK",
+                      st.substr(8, 2).c_str(), st.substr(5, 2).c_str());
+          }
+        }
+        punkte(3, vs - 1, c);
+        return;
+      }
+
+      // ===================== normale Anzeige (wie altes Display) =====================
+      float v = NAN, anteil = NAN;
+      Color c = Color::WHITE;
+      bool fest = false, umgekehrt = false;
+      const char *label = "";
+      const char *fmt = "%.1f °C";
+      image::Image *icon = id(ic_temp);
+
+      switch (id(seite)) {
+        case 0:
+          v = id(aussen_temp).state; anteil = anteil_von(v, -15, 35);
+          label = "Aussen"; icon = id(ic_temp);
+          break;
+        case 1:
+          v = id(aussen_feuchte).state; anteil = anteil_von(v, 0, 100);
+          label = "Feuchte"; icon = id(ic_feuchte); fmt = "%.0f %%";
+          fest = true; c = id(tuerkis);
+          break;
+        case 2:
+          v = id(puffer_oben).state; anteil = anteil_von(v, 20, 90);
+          label = "Puffer oben"; icon = id(ic_puffer);
+          break;
+        case 3:
+          v = id(kamin).state; anteil = anteil_von(v, 20, 100);
+          label = "Kamin"; icon = id(ic_kamin);
+          break;
+        default:
+          v = id(solar_akku).state; anteil = anteil_von(v, 0, 100);
+          label = "Solar-Akku"; fmt = "%.0f %%"; umgekehrt = true;
+          if (isnan(v) || v <= 15) icon = id(ic_akku10);
+          else if (v <= 35) icon = id(ic_akku30);
+          else if (v <= 60) icon = id(ic_akku50);
+          else if (v <= 85) icon = id(ic_akku70);
+          else icon = id(ic_akku100);
+          break;
+      }
+      // Icon und Zahl in der Farbe, die zum Wert passt
+      if (!fest) c = isnan(anteil) ? id(grau) : verlauf(umgekehrt ? 1.0f - anteil : anteil);
+
+      ring(anteil, fest, c, umgekehrt);
+      it.image(CX, 36, icon, ImageAlign::TOP_CENTER, c);
+      if (isnan(v)) it.print(CX, 112, id(f_wert), id(grau), TextAlign::TOP_CENTER, "--");
+      else it.printf(CX, 112, id(f_wert), c, TextAlign::TOP_CENTER, fmt, v);
+      it.print(CX, 163, id(f_titel), id(hellgrau), TextAlign::TOP_CENTER, label);
+      if (!online) it.print(CX, 190, id(f_text), id(rot), TextAlign::TOP_CENTER, "OFFLINE");
+      punkte(5, id(seite), Color::WHITE);
