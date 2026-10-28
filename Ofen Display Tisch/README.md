@@ -10,6 +10,10 @@ Rundes Touch-Display für den Tisch: Ein **Waveshare ESP32-S3-Touch-LCD-1.28** i
 
 ## Seiten
 
+![Alle Display-Seiten](docs/display-seiten.png)
+
+> Die Seiten oben sind Vorschauen, die aus dem Zeichen-Code der YAML mit echten Werten nachgebaut sind. Die Fotos weiter oben zeigen das echte Gerät.
+
 ### Normale Anzeige (Wechsel alle 3 s)
 
 | Seite | Symbol | Wert | Ring und Farbe |
@@ -32,8 +36,18 @@ Rundes Touch-Display für den Tisch: Ein **Waveshare ESP32-S3-Touch-LCD-1.28** i
 | Kosten (grün) | Kosten heute / gestern / vorgestern = kWh × Gaspreis, darunter der Gaspreis pro kWh |
 | Gesamt (orange) | Kosten Woche / Monat / Jahr ab Stichtag inkl. Grundkosten (rechnet Home Assistant) |
 
-- Der Ring läuft hier als **Restzeit** der Seite ab.
-- Nochmal antippen = sofort die nächste Seite. Nach der letzten geht es zurück zur normalen Anzeige.
+### So funktioniert der Touch
+
+| Was passiert | Ergebnis |
+|---|---|
+| Einmal antippen (egal wo, egal auf welcher normalen Seite) | Seite **Gas kWh** erscheint |
+| Nichts tun | nach 15 s **Kosten**, nach weiteren 15 s **Gesamt**, nach weiteren 15 s zurück zur normalen Anzeige (insgesamt 45 s) |
+| Während einer Verbrauchsseite antippen | sofort die **nächste** Seite, sie bleibt wieder volle 15 s |
+| Auf **Gesamt** antippen | sofort zurück zur normalen Anzeige |
+
+- Der Ring am Rand läuft auf den Verbrauchsseiten als **Restzeit** ab: voll beim Erscheinen, leer wenn die nächste Seite kommt.
+- Die drei Punkte unten zeigen, auf welcher Verbrauchsseite man ist.
+- Solange eine Verbrauchsseite zu sehen ist, wartet der normale 3-s-Wechsel. Danach geht es mit der Seite weiter, auf der man vorher war.
 - Die Zeit pro Seite steht oben in der YAML: `verbrauch_sekunden: "15"`.
 
 ## Hardware
