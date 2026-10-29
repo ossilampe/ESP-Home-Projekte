@@ -1,0 +1,872 @@
+# Display Bad (früher „Test Lilygo 2“)
+# LILYGO T-Display S3 (ESP32-S3, 1,9″ Farbdisplay 320×170) im Bad: Ruhebild mit Uhrzeit,
+# Außentemperatur und Luftfeuchte aus Home Assistant. Sobald eine Oral-B-Zahnbürste läuft,
+# zeigt es einen 2-Minuten-Putzring mit Animation, danach kurz das Ergebnis.
+# Dient außerdem als Bluetooth-Proxy, damit Home Assistant die Zahnbürsten im Bad empfängt.
+# Details: README.md
+
+# Zahnbürsten: Haupt-Entität der Oral-B-Integration (Zustand running/idle);
+# daraus werden <id>_dauer und <id>_druck abgeleitet
+substitutions:
+  buerste1_id: sensor.tom
+  buerste1_name: Tom
+  # Sarahs Oral-B iO (seit 2026-10-29, vorher Genius X sensor.sarah)
+  buerste2_id: sensor.badezimmer_sarah_iq
+  buerste2_name: Sarah
+
+esphome:
+  name: display-bad
+  friendly_name: Display Bad
+  on_boot:
+    # nach dem Start (Display ist dann bereit) die Hintergrundbeleuchtung sicher einschalten:
+    # den AW9364 neu starten lassen und die Helligkeit des Lichts neu ausgeben
+    priority: -100
+    then:
+      - lambda: |-
+          id(bl_stufe) = 0;
+          id(bl_en).turn_off();
+          delay(3);
+          float h = id(backlight).current_values.get_brightness();
+          id(backlight_out).set_level(h > 0.05f ? h : 1.0f);
+
+# esp-idf statt arduino: nötig für den nativen Display-Treiber (mipi_spi) und
+# von ESPHome für den Bluetooth-Proxy empfohlen
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  speed: 80MHz
+  mode: octal
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret display_bad__encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret display_bad__ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Feste IP – an das eigene Netz anpassen oder den Block entfernen (DHCP)
+  manual_ip:
+    static_ip: 192.168.50.84
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Display-Bad Fallback Hotspot"
+    password: !secret display_bad__ap_password
+
+captive_portal:
+
+# Bluetooth: das Display leitet BLE-Geräte in der Nähe (Zahnbürsten) an Home Assistant weiter.
+# Die Zahnbürsten erscheinen danach unter Einstellungen → Geräte & Dienste als neu gefunden.
+esp32_ble_tracker:
+  scan_parameters:
+    # Empfehlung von ESPHome für den Proxy; WLAN und BLE teilen sich die Antenne im Zeitmultiplex
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  # active: true erlaubt auch Verbindungen zu Geräten, nicht nur Mithören
+  active: true
+
+time:
+  - platform: homeassistant
+    id: esptime
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+    name: "Button 1"
+  - platform: gpio
+    pin:
+      number: GPIO14
+      inverted: true
+    name: "Button 2"
+
+output:
+  # Hintergrundbeleuchtung: der T-Display S3 hat einen AW9364-Treiber mit 16 Stufen,
+  # der über Impulse auf GPIO38 eingestellt wird (wie beim Display Buderus)
+  - platform: gpio
+    pin: GPIO38
+    id: bl_en
+  - platform: template
+    id: backlight_out
+    type: float
+    write_action:
+      - lambda: |-
+          int &stufe = id(bl_stufe);  // aktuelle Stufe des AW9364, 0 = aus
+          int neu = (int) roundf(state * 16.0f);
+          if (state > 0.0f && neu < 1) neu = 1;
+          if (neu > 16) neu = 16;
+          if (neu == stufe) return;
+          if (neu == 0) {
+            id(bl_en).turn_off();
+            delay(3);
+            stufe = 0;
+            return;
+          }
+          if (stufe == 0) {
+            id(bl_en).turn_on();
+            delayMicroseconds(40);
+            stufe = 16;
+          }
+          int impulse = (stufe - neu + 16) % 16;
+          for (int i = 0; i < impulse; i++) {
+            id(bl_en).turn_off();
+            delayMicroseconds(2);
+            id(bl_en).turn_on();
+            delayMicroseconds(2);
+          }
+          stufe = neu;
+
+light:
+  - platform: monochromatic
+    output: backlight_out
+    name: "Backlight"
+    id: backlight
+    # nach jedem Start an (Helligkeit wird übernommen), aus HA weiterhin ausschaltbar
+    restore_mode: RESTORE_AND_ON
+    gamma_correct: 1.0              # die 16 Stufen des AW9364 sind schon passend abgestuft
+    default_transition_length: 0s
+
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: f_gross
+    size: 40
+    glyphsets: [GF_Latin_Core]
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 500
+    id: f_mittel
+    size: 26
+    glyphsets: [GF_Latin_Core]
+
+  - file: "gfonts://Roboto"
+    id: f_klein
+    size: 16
+    glyphsets: [GF_Latin_Core]
+
+  # große Außentemperatur im Ruhebild, nur die nötigen Zeichen
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 300
+    id: f_riesig
+    size: 66
+    glyphs: "0123456789,-°"
+
+animation:
+  # Toms Avatar (aus seinem WhatsApp-GIF, Hintergrund transparent gemacht), 18 Bilder
+  - file: "image/tom.gif"
+    id: tom_anim
+    type: RGB565
+    transparency: alpha_channel
+    resize: 112x112
+  # kleiner für die Doppelansicht, wenn beide gleichzeitig putzen
+  - file: "image/tom.gif"
+    id: tom_anim_klein
+    type: RGB565
+    transparency: alpha_channel
+    resize: 80x80
+  # Sarahs Avatar (aus ihrer animierten WebP, 18 Bilder, zwinkert), ebenfalls groß und klein
+  - file: "image/sarah.gif"
+    id: sarah_anim
+    type: RGB565
+    transparency: alpha_channel
+    resize: 112x112
+  - file: "image/sarah.gif"
+    id: sarah_anim_klein
+    type: RGB565
+    transparency: alpha_channel
+    resize: 80x80
+
+globals:
+  # aktuelle Stufe des Hintergrundlicht-Treibers AW9364 (0 = aus, 1..16)
+  - id: bl_stufe
+    type: int
+    initial_value: '0'
+  # Putzrunde je Zahnbürste, vom Display selbst verfolgt:
+  #   lief      Runde läuft (auch während einer kurzen Pause)
+  #   start_ms  Beginn der Runde, stop_ms  Bürste meldet „nicht running“ (Ende vorgemerkt, 0 = nein)
+  #   dauer_ms  letzte Dauer-Meldung, sitzung_s  höchste Dauer dieser Runde (alte Werte zählen nicht)
+  #   ende_ms   Runde abgeschlossen (für die Ergebnisanzeige), final  Ergebnis in Sekunden
+  - id: b1_lief
+    type: bool
+    initial_value: 'false'
+  - id: b1_start_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b1_stop_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b1_dauer_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b1_sitzung_s
+    type: float
+    initial_value: '0'
+  - id: b1_ende_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b1_final
+    type: int
+    initial_value: '0'
+  - id: b2_lief
+    type: bool
+    initial_value: 'false'
+  - id: b2_start_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b2_stop_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b2_dauer_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b2_sitzung_s
+    type: float
+    initial_value: '0'
+  - id: b2_ende_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: b2_final
+    type: int
+    initial_value: '0'
+
+sensor:
+  - platform: homeassistant
+    id: mittelwert_temperatur
+    entity_id: sensor.mittelwert_temperatur_aussen
+    internal: true
+
+  - platform: homeassistant
+    id: mittelwert_feuchte
+    entity_id: sensor.mittelwert_huminity_aussen
+    internal: true
+
+  # Putzdauer in Sekunden, von der Oral-B-Integration in HA. Zählt nur, wenn sie während
+  # einer laufenden Runde kommt – der Wert der letzten Runde steht sonst noch drin.
+  # Kommt nach einer Funklücke wieder eine Meldung, wird die gerade beendete Runde fortgesetzt.
+  - platform: homeassistant
+    id: b1_dauer
+    entity_id: ${buerste1_id}_dauer
+    internal: true
+    on_value:
+      - lambda: |-
+          uint32_t jetzt = millis();
+          if (!id(b1_lief) && id(b1_status).state == "running" && id(b1_ende_ms) != 0 &&
+              jetzt - id(b1_ende_ms) < 15000) {
+            id(b1_lief) = true;
+            id(b1_ende_ms) = 0;
+          }
+          if (id(b1_lief) && !isnan(x)) {
+            id(b1_sitzung_s) = std::max(id(b1_sitzung_s), x);
+            id(b1_dauer_ms) = jetzt;
+          }
+
+  - platform: homeassistant
+    id: b2_dauer
+    entity_id: ${buerste2_id}_dauer
+    internal: true
+    on_value:
+      - lambda: |-
+          uint32_t jetzt = millis();
+          if (!id(b2_lief) && id(b2_status).state == "running" && id(b2_ende_ms) != 0 &&
+              jetzt - id(b2_ende_ms) < 15000) {
+            id(b2_lief) = true;
+            id(b2_ende_ms) = 0;
+          }
+          if (id(b2_lief) && !isnan(x)) {
+            id(b2_sitzung_s) = std::max(id(b2_sitzung_s), x);
+            id(b2_dauer_ms) = jetzt;
+          }
+
+  # Wind aus der Wettervorhersage (met.no)
+  - platform: homeassistant
+    id: wetter_wind
+    entity_id: weather.forecast_home
+    attribute: wind_speed
+    internal: true
+
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+text_sensor:
+  # Zustand der Zahnbürste: running / idle / off / selection_menu / initializing / ...
+  # running = neue Runde (oder Fortsetzung nach kurzer Pause); alles andere merkt das Ende nur vor,
+  # abgeschlossen wird die Runde im interval unten erst nach 2,5 s ohne neues running
+  - platform: homeassistant
+    id: b1_status
+    entity_id: ${buerste1_id}
+    internal: true
+    on_value:
+      - lambda: |-
+          uint32_t jetzt = millis();
+          if (x == "running") {
+            if (!id(b1_lief)) {
+              id(b1_lief) = true;
+              id(b1_start_ms) = jetzt;
+              id(b1_dauer_ms) = jetzt;
+              id(b1_sitzung_s) = 0;
+              id(b1_ende_ms) = 0;
+            }
+            id(b1_stop_ms) = 0;
+          } else if (id(b1_lief) && id(b1_stop_ms) == 0) {
+            id(b1_stop_ms) = jetzt;
+          }
+
+  - platform: homeassistant
+    id: b2_status
+    entity_id: ${buerste2_id}
+    internal: true
+    on_value:
+      - lambda: |-
+          uint32_t jetzt = millis();
+          if (x == "running") {
+            if (!id(b2_lief)) {
+              id(b2_lief) = true;
+              id(b2_start_ms) = jetzt;
+              id(b2_dauer_ms) = jetzt;
+              id(b2_sitzung_s) = 0;
+              id(b2_ende_ms) = 0;
+            }
+            id(b2_stop_ms) = 0;
+          } else if (id(b2_lief) && id(b2_stop_ms) == 0) {
+            id(b2_stop_ms) = jetzt;
+          }
+
+  # Wetterlage für das Icon im Ruhebild: sunny / partlycloudy / cloudy / rainy / ... / clear-night
+  - platform: homeassistant
+    id: wetter_zustand
+    entity_id: weather.forecast_home
+    internal: true
+
+  # Tag/Nacht: above_horizon / below_horizon (Mond statt Sonne bei „heiter“ in der Nacht)
+  - platform: homeassistant
+    id: sonne_zustand
+    entity_id: sun.sun
+    internal: true
+
+  # Druck: normal / high / low (nur iO) / power_button_pressed / ...
+  - platform: homeassistant
+    id: b1_druck
+    entity_id: ${buerste1_id}_druck
+    internal: true
+
+  - platform: homeassistant
+    id: b2_druck
+    entity_id: ${buerste2_id}_druck
+    internal: true
+
+spi:
+  # 8-Bit-Parallelbus des T-Display S3 (WR = GPIO8, D0-D7)
+  - id: spi_display
+    type: octal
+    clk_pin: GPIO8
+    data_pins: [GPIO39, GPIO40, GPIO41, GPIO42, GPIO45, GPIO46, GPIO47, GPIO48]
+
+# Nativer ESPHome-Treiber (ersetzt die alte externe Komponente tdisplays3,
+# die auf ESPHome 2026.10 nicht mehr baut); schaltet GPIO15 (LCD-Strom) und GPIO9 (RD) selbst ein
+# 10 Bilder pro Sekunde, damit Wetter-Icons und Putz-Animation flüssig laufen
+display:
+  - platform: mipi_spi
+    model: T-DISPLAY-S3
+    spi_id: spi_display
+    id: disp
+    update_interval: 100ms
+    rotation: 270
+    lambda: |-
+      const uint32_t now = millis();
+      const Color KARTE(20, 26, 36);
+      const Color GRAU(55, 63, 75);
+      const Color TEXT(235, 240, 245);
+      const Color DIM(130, 140, 155);
+      const Color CYAN(0, 210, 230);
+      const Color GRUEN(60, 220, 110);
+      const Color ROT(255, 70, 60);
+      const Color GELB(255, 200, 40);
+      it.fill(Color::BLACK);
+
+      // ---------- Themen: Tom kräftig blau/petrol/orange, Sarah pink/flieder/gold ----------
+      struct Thema {
+        Color von, bis;   // Verlauf des Rings
+        Color akzent;     // Funken, Sterne, Kopf des Rings
+        Color medaillon;  // Hintergrund hinter Avatar / Herz
+        bool herzen;      // Sarah: Herzchen statt Funken
+      };
+      const Thema THEMA[2] = {
+        {Color(0, 110, 255), Color(0, 220, 190), Color(255, 140, 0), Color(12, 44, 90), false},
+        {Color(255, 90, 170), Color(175, 100, 255), Color(255, 210, 90), Color(80, 22, 66), true},
+      };
+      auto mische = [](Color a, Color b, float t) {
+        return Color(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+      };
+
+      // ---------- Zahnbürsten auswerten ----------
+      struct Putzer {
+        const char *name;
+        bool laeuft;
+        float sek;       // geputzte Sekunden, zwischen den Meldungen weitergezählt
+        bool zu_fest;
+        bool zu_leicht;
+        bool ergebnis;   // Putzrunde gerade zu Ende → Ergebnis zeigen
+        int final_s;
+      };
+      auto lies = [&](const char *name, bool lief, uint32_t stop_ms, float sitzung, uint32_t dauer_ms,
+                      const std::string &druck, uint32_t ende_ms, int final_s) {
+        Putzer p{name, lief, 0.0f, lief && druck == "high", lief && druck == "low", false, final_s};
+        if (p.laeuft) {
+          // zwischen den Meldungen (alle 1-2 s) weiterzählen, bei vorgemerktem Ende anhalten
+          float extra = stop_ms != 0 ? 0.0f : std::min(2.5f, (now - dauer_ms) / 1000.0f);
+          p.sek = sitzung + extra;
+        }
+        p.ergebnis = !p.laeuft && ende_ms != 0 && final_s >= 3 && (now - ende_ms) < 8000;
+        return p;
+      };
+      Putzer b[2] = {
+        lies("${buerste1_name}", id(b1_lief), id(b1_stop_ms), id(b1_sitzung_s), id(b1_dauer_ms),
+             id(b1_druck).state, id(b1_ende_ms), id(b1_final)),
+        lies("${buerste2_name}", id(b2_lief), id(b2_stop_ms), id(b2_sitzung_s), id(b2_dauer_ms),
+             id(b2_druck).state, id(b2_ende_ms), id(b2_final)),
+      };
+
+      // ---------- Zeichenhelfer ----------
+      auto karte = [&](int x, int y, int w, int h, Color c) {
+        const int r = std::min(8, std::min(w, h) / 2);   // flache Kästchen nicht überrunden
+        it.filled_rectangle(x + r, y, w - 2 * r, h, c);
+        it.filled_rectangle(x, y + r, w, h - 2 * r, c);
+        it.filled_circle(x + r, y + r, r, c);
+        it.filled_circle(x + w - r - 1, y + r, r, c);
+        it.filled_circle(x + r, y + h - r - 1, r, c);
+        it.filled_circle(x + w - r - 1, y + h - r - 1, r, c);
+      };
+
+      auto herz = [&](int cx, int cy, int s, Color c) {   // s = halbe Breite
+        int r = s / 2 + 1;
+        it.filled_circle(cx - s / 2, cy - s / 4, r, c);
+        it.filled_circle(cx + s / 2, cy - s / 4, r, c);
+        it.filled_triangle(cx - s - 1, cy - s / 4 + 1, cx + s + 1, cy - s / 4 + 1, cx, cy + s, c);
+      };
+
+      auto stern = [&](int x, int y, int r, Color c) {
+        it.line(x - r, y, x + r, y, c);
+        it.line(x, y - r, x, y + r, c);
+        it.line(x - r / 2, y - r / 2, x + r / 2, y + r / 2, c);
+        it.line(x - r / 2, y + r / 2, x + r / 2, y - r / 2, c);
+      };
+
+      // Fortschrittsring aus 60 Punkten = 2 Minuten, Farbverlauf, Kopf pulsiert
+      auto ring = [&](int cx, int cy, int r, int dot, float sek, const Thema &th, bool warnung) {
+        const int N = 60;
+        int fertig = (int) (sek / 120.0f * N);
+        for (int i = 0; i < N; i++) {
+          float a = i * 2.0f * M_PI / N - M_PI / 2;
+          int x = cx + (int) roundf(cosf(a) * r);
+          int y = cy + (int) roundf(sinf(a) * r);
+          if (i < fertig) {
+            Color c = warnung ? ROT : (sek >= 120.0f ? GELB : mische(th.von, th.bis, i / (float) N));
+            it.filled_circle(x, y, dot, c);
+          } else if (i == fertig) {
+            it.filled_circle(x, y, dot + 1 + (now / 150) % 2, th.akzent);
+          } else {
+            it.filled_circle(x, y, (i % 15 == 0) ? dot : dot - 1, GRAU);
+          }
+        }
+      };
+
+      auto restzeit = [&](int cx, int cy, BaseFont *font, float sek) {
+        if (sek >= 120.0f) {
+          it.print(cx, cy, id(f_mittel), GELB, TextAlign::CENTER, "Fertig!");
+          return;
+        }
+        int rest = 120 - (int) sek;
+        it.printf(cx, cy, font, TEXT, TextAlign::CENTER, "%d:%02d", rest / 60, rest % 60);
+      };
+
+      // vier Bereiche à 30 s als Reihe: erledigt / aktiv (blinkt) / offen
+      auto bereiche = [&](int x, int y, float sek, const Thema &th) {
+        int aktiv = (int) (sek / 30.0f);
+        for (int i = 0; i < 4; i++) {
+          Color c = GRAU;
+          if (i < aktiv) c = mische(th.von, th.bis, i / 3.0f);
+          else if (i == aktiv) c = ((now / 400) % 2) ? th.akzent : TEXT;
+          karte(x + i * 35, y, 31, 12, c);
+        }
+      };
+
+      // Medaillon: Tom mit Avatar-Animation + kreisenden Funken, Sarah mit Herz + Herzchen
+      auto medaillon = [&](int k, int cx, int cy, int r, const Thema &th) {
+        float dreh = now / 600.0f;
+        if (!th.herzen) {
+          for (int i = 0; i < 8; i++) {            // Funken wie im GIF
+            float a = dreh + i * M_PI / 4;
+            int l = 4 + ((now / 120 + i) % 3) * 2;
+            int x1 = cx + (int) (cosf(a) * (r + 4)), y1 = cy + (int) (sinf(a) * (r + 4));
+            int x2 = cx + (int) (cosf(a) * (r + 4 + l)), y2 = cy + (int) (sinf(a) * (r + 4 + l));
+            it.line(x1, y1, x2, y2, th.akzent);
+          }
+        } else {
+          for (int i = 0; i < 5; i++) {            // schwebende Herzchen
+            int t = (now / 25 + i * 37) % (2 * r);
+            int hx = cx - r + 6 + (i * 29) % (2 * r - 12) + (int) (sinf(now / 300.0f + i) * 4);
+            int hy = cy + r - t;
+            if (t > 6 && t < 2 * r - 4) herz(hx, hy, 3 + i % 2, (i % 2) ? th.von : th.akzent);
+          }
+        }
+        it.filled_circle(cx, cy, r, th.medaillon);
+        it.circle(cx, cy, r, th.akzent);
+        // Avatar mittig, unten bündig mit dem Kreis: 112 px groß, 80 px in der Doppelansicht
+        if (r >= 50) it.image(cx - 56, cy + r - 112, k == 0 ? id(tom_anim) : id(sarah_anim));
+        else it.image(cx - 40, cy + r - 80, k == 0 ? id(tom_anim_klein) : id(sarah_anim_klein));
+      };
+
+      int laufend = (b[0].laeuft ? 1 : 0) + (b[1].laeuft ? 1 : 0);
+
+      // ---------- Beide putzen gleichzeitig: je Hälfte Zeitring außen, Medaillon innen ----------
+      // auch wenn eine schon fertig ist und die andere noch putzt: dann steht in ihrer Hälfte das Ergebnis
+      // (nur wenn sich die Runden überlappt haben – wer nach dem Ende der anderen anfängt, bekommt seine Einzelansicht)
+      const uint32_t start_ms[2] = {id(b1_start_ms), id(b2_start_ms)};
+      const uint32_t ende_ms[2] = {id(b1_ende_ms), id(b2_ende_ms)};
+      auto dabei = [&](int k) { return b[k].laeuft || (b[k].ergebnis && ende_ms[k] > start_ms[1 - k]); };
+      bool doppelt = laufend >= 1 && dabei(0) && dabei(1);
+      if (doppelt) {
+        for (int k = 0; k < 2; k++) {
+          int cx = k * 160 + 80;
+          const Thema &th = THEMA[k];
+          if (!b[k].laeuft) {
+            bool super = b[k].final_s >= 110;
+            ring(cx, 72, 64, 3, std::min(120.0f, (float) b[k].final_s), th, false);
+            medaillon(k, cx, 72, 42, th);
+            it.printf(cx, 156, id(f_mittel), super ? GELB : Color(210, 212, 218), TextAlign::CENTER,
+                      super ? "Super, %s!" : "%s %d:%02d", b[k].name, b[k].final_s / 60, b[k].final_s % 60);
+            continue;
+          }
+          ring(cx, 72, 64, 3, b[k].sek, th, b[k].zu_fest);
+          medaillon(k, cx, 72, 42, th);
+          if (b[k].zu_fest && (now / 300) % 2) {
+            it.print(cx, 156, id(f_mittel), ROT, TextAlign::CENTER, "Zu fest!");
+          } else if (b[k].sek >= 120.0f) {
+            it.printf(cx, 156, id(f_mittel), GELB, TextAlign::CENTER, "%s fertig!", b[k].name);
+          } else {
+            int rest = 120 - (int) b[k].sek;
+            it.printf(cx, 156, id(f_mittel), th.von, TextAlign::CENTER, "%s %d:%02d", b[k].name, rest / 60, rest % 60);
+          }
+        }
+        it.line(160, 20, 160, 130, GRAU);
+        return;
+      }
+
+      // ---------- Eine Bürste putzt: Ring links, Medaillon + Bereiche rechts ----------
+      if (laufend == 1) {
+        int k = b[0].laeuft ? 0 : 1;
+        Putzer &p = b[k];
+        const Thema &th = THEMA[k];
+        ring(82, 85, 70, 4, p.sek, th, p.zu_fest);
+        restzeit(82, 80, id(f_gross), p.sek);
+        if (p.sek >= 120.0f)
+          it.printf(82, 112, id(f_klein), DIM, TextAlign::CENTER, "%d:%02d geputzt", (int) p.sek / 60, (int) p.sek % 60);
+        else
+          it.print(82, 112, id(f_klein), DIM, TextAlign::CENTER, "noch");
+
+        if (p.zu_fest) {
+          if ((now / 300) % 2) {
+            karte(170, 20, 144, 96, ROT);
+            it.print(242, 68, id(f_mittel), TEXT, TextAlign::CENTER, "Zu fest!");
+          }
+        } else {
+          medaillon(k, 242, 66, 52, th);
+        }
+        if (p.zu_leicht && (now / 400) % 2)
+          it.print(242, 134, id(f_klein), GELB, TextAlign::CENTER, "etwas fester");
+        else
+          it.print(242, 134, id(f_mittel), th.von, TextAlign::CENTER, p.name);
+        bereiche(173, 152, p.sek, th);
+        return;
+      }
+
+      // ---------- Putzrunde vorbei: Ergebnis der zuletzt beendeten Runde 8 s lang ----------
+      int zuletzt = -1;
+      if (b[0].ergebnis) zuletzt = 0;
+      if (b[1].ergebnis && (zuletzt < 0 || ende_ms[1] >= ende_ms[0])) zuletzt = 1;
+      if (zuletzt >= 0) {
+        int k = zuletzt;
+        const Thema &th = THEMA[k];
+        bool super = b[k].final_s >= 110;
+        if (super) {
+          for (int i = 0; i < 16; i++) {     // Sterne bzw. Herzchen-Konfetti
+            int sx = (i * 67 + 13) % 300 + 10;
+            int sy = (i * 41 + 7) % 150 + 10;
+            int r = (now / 120 + i) % 5;
+            Color c = (i % 2) ? th.akzent : th.bis;
+            if (r == 0) continue;
+            if (th.herzen) herz(sx, sy, r + 1, c);
+            else stern(sx, sy, r + 1, c);
+          }
+        }
+        medaillon(k, 82, 88, 64, th);
+        if (super)
+          it.print(232, 40, id(f_mittel), th.akzent, TextAlign::CENTER, "Super,");
+        it.printf(232, super ? 70 : 52, id(f_mittel), th.von, TextAlign::CENTER, super ? "%s!" : "%s", b[k].name);
+        it.printf(232, 112, id(f_gross), TEXT, TextAlign::CENTER, "%d:%02d", b[k].final_s / 60, b[k].final_s % 60);
+        it.print(228, 150, id(f_klein), Color(210, 212, 218), TextAlign::CENTER,
+                 super ? "2 Minuten geschafft" : "Nächstes Mal 2 Minuten");
+        return;
+      }
+
+      // ---------- Ruhebild: animiertes Wetter, Außentemperatur, Luftfeuchte, Wind ----------
+      const Color BG(12, 12, 15);
+      it.fill(BG);
+      const float T = now / 1000.0f;
+      const std::string &wetter = id(wetter_zustand).state;
+      bool nacht = id(sonne_zustand).state == "below_horizon";
+      if (wetter == "clear-night") nacht = true;
+      if (wetter == "sunny") nacht = false;
+
+      const Color SONNE(255, 170, 30), SONNE_HELL(255, 214, 90), STRAHL(255, 196, 60);
+      const Color MOND(242, 232, 205), WOLKE(205, 208, 214), WOLKE_DUNKEL(120, 124, 134);
+      const Color REGEN(175, 190, 205), BLITZ(255, 225, 80);
+
+      auto wolke = [&](int cx, int cy, int s, Color c) {
+        it.filled_circle(cx - s / 2, cy, s * 45 / 100, c);
+        it.filled_circle(cx + s / 2, cy + s / 20, s * 40 / 100, c);
+        it.filled_circle(cx - s / 20, cy - s / 4, s * 58 / 100, c);
+        it.filled_rectangle(cx - s / 2, cy, s, s * 42 / 100, c);
+      };
+      auto sonne = [&](int cx, int cy, int r) {
+        for (int i = 0; i < 12; i++) {           // langsam drehende, atmende Strahlen
+          float a = T * 0.4f + i * M_PI / 6;
+          float l = r + 13 + 3 * sinf(T * 3 + i);
+          int x1 = cx + (int) (cosf(a) * (r + 6)), y1 = cy + (int) (sinf(a) * (r + 6));
+          int x2 = cx + (int) (cosf(a) * l), y2 = cy + (int) (sinf(a) * l);
+          it.line(x1, y1, x2, y2, STRAHL);
+          it.line(x1 + 1, y1, x2 + 1, y2, STRAHL);
+        }
+        it.filled_circle(cx, cy, r, SONNE);
+        it.filled_circle(cx - r / 5, cy - r / 5, r * 6 / 10, SONNE_HELL);
+      };
+      // Mond als Sichel: die Aussparung bekommt die Farbe des inneren Leuchtkreises dahinter
+      Color glow_innen = BG;
+      auto mond = [&](int cx, int cy, int r) {
+        it.filled_circle(cx, cy, r, MOND);
+        it.filled_circle(cx + r * 45 / 100, cy - r * 30 / 100, r * 82 / 100, glow_innen);
+      };
+      auto sternchen = [&](int cx, int cy) {
+        const int sx[6] = {-48, -30, 34, 46, -40, 20};
+        const int sy[6] = {-40, -54, -46, -14, 22, -58};
+        for (int i = 0; i < 6; i++) {
+          int r = (int) (1.5f + 1.5f * sinf(T * 2.2f + i * 1.7f));
+          if (r <= 0) { it.draw_pixel_at(cx + sx[i], cy + sy[i], DIM); continue; }
+          it.line(cx + sx[i] - r, cy + sy[i], cx + sx[i] + r, cy + sy[i], MOND);
+          it.line(cx + sx[i], cy + sy[i] - r, cx + sx[i], cy + sy[i] + r, MOND);
+        }
+      };
+      auto tropfen = [&](int cx, int y0, int n, int tempo, Color c) {
+        for (int i = 0; i < n; i++) {
+          int x = cx - 30 + i * 60 / std::max(1, n - 1);
+          int y = y0 + (int) ((now / tempo + i * 23) % 42);
+          it.line(x, y, x - 3, y + 8, c);
+          it.line(x + 1, y, x - 2, y + 8, c);
+        }
+      };
+      auto flocken = [&](int cx, int y0, int n) {
+        for (int i = 0; i < n; i++) {
+          int t = (int) ((now / 45 + i * 29) % 44);
+          int x = cx - 28 + i * 56 / std::max(1, n - 1) + (int) (sinf(T * 2 + i) * 4);
+          int y = y0 + t;
+          it.line(x - 3, y, x + 3, y, TEXT);
+          it.line(x, y - 3, x, y + 3, TEXT);
+          it.line(x - 2, y - 2, x + 2, y + 2, TEXT);
+          it.line(x - 2, y + 2, x + 2, y - 2, TEXT);
+        }
+      };
+      auto blitz = [&](int cx, int cy) {
+        if ((now % 2600) > 350) return;            // kurz aufblitzen
+        it.filled_triangle(cx + 4, cy - 18, cx - 10, cy + 4, cx + 2, cy + 4, BLITZ);
+        it.filled_triangle(cx - 2, cy + 2, cx + 8, cy + 2, cx - 6, cy + 26, BLITZ);
+      };
+      auto nebel = [&](int cx, int cy) {
+        for (int i = 0; i < 4; i++) {
+          int dx = (int) (sinf(T * 0.8f + i * 1.3f) * 8);
+          int w = 70 - (i % 2) * 16;
+          int x = cx - w / 2 + dx, y = cy - 24 + i * 16;
+          Color c = (i % 2) ? WOLKE_DUNKEL : WOLKE;
+          it.filled_rectangle(x, y, w, 6, c);
+          it.filled_circle(x, y + 2, 3, c);
+          it.filled_circle(x + w, y + 2, 3, c);
+        }
+      };
+      auto wind = [&](int cx, int cy) {
+        for (int i = 0; i < 3; i++) {
+          int y = cy - 20 + i * 18;
+          int w = 64 - i * 10;
+          int x0 = cx - 34 + i * 6;
+          it.filled_rectangle(x0, y, w, 4, (i == 1) ? WOLKE : WOLKE_DUNKEL);
+          int p = (int) ((now / 12 + i * 40) % (w + 30)) - 15;   // wandernder Böen-Streifen
+          if (p > 0 && p < w - 10) it.filled_rectangle(x0 + p, y, 10, 4, TEXT);
+          it.filled_circle(x0 + w, y - 4, 6, (i == 1) ? WOLKE : WOLKE_DUNKEL);
+          it.filled_circle(x0 + w, y - 4, 2, BG);
+        }
+      };
+
+      // sanftes Leuchten hinter dem Icon, Farbe passend zum Wetter
+      Color glow = WOLKE_DUNKEL;
+      if (wetter == "sunny" || wetter == "partlycloudy") glow = nacht ? Color(150, 130, 210) : SONNE;
+      else if (wetter == "clear-night") glow = Color(150, 130, 210);
+      else if (wetter == "lightning" || wetter == "lightning-rainy") glow = BLITZ;
+      const int icx = 70, icy = 88;
+      const float stufen[3] = {0.07f, 0.12f, 0.18f};
+      const int radien[3] = {66, 52, 40};
+      for (int i = 0; i < 3; i++) {
+        Color c = mische(BG, glow, stufen[i] * (0.85f + 0.15f * sinf(T * 1.5f)));
+        it.filled_circle(icx, icy, radien[i], c);
+        glow_innen = c;
+      }
+
+      int drift = (int) (sinf(T * 0.7f) * 5);
+      if (wetter == "sunny" || wetter == "clear-night") {
+        if (nacht) { sternchen(icx, icy); mond(icx, icy, 26); }
+        else sonne(icx, icy, 26);
+      } else if (wetter == "partlycloudy") {
+        if (nacht) { sternchen(icx, icy); mond(icx + 16, icy - 16, 20); }
+        else sonne(icx + 16, icy - 16, 19);
+        wolke(icx - 6 + drift, icy + 14, 54, WOLKE);
+      } else if (wetter == "cloudy") {
+        wolke(icx + 16 - drift, icy - 12, 40, WOLKE_DUNKEL);
+        wolke(icx - 6 + drift, icy + 10, 56, WOLKE);
+      } else if (wetter == "rainy" || wetter == "pouring") {
+        tropfen(icx, icy + 14, wetter == "pouring" ? 8 : 5, wetter == "pouring" ? 6 : 10, REGEN);
+        wolke(icx + drift / 2, icy - 6, 58, WOLKE);
+      } else if (wetter == "snowy" || wetter == "snowy-rainy") {
+        if (wetter == "snowy-rainy") tropfen(icx + 6, icy + 14, 3, 10, REGEN);
+        flocken(icx, icy + 14, wetter == "snowy" ? 5 : 3);
+        wolke(icx + drift / 2, icy - 6, 58, WOLKE);
+      } else if (wetter == "hail") {
+        for (int i = 0; i < 6; i++) {
+          int x = icx - 28 + i * 11;
+          int y = icy + 14 + (int) ((now / 7 + i * 31) % 42);
+          it.filled_circle(x, y, 3, TEXT);
+        }
+        wolke(icx + drift / 2, icy - 6, 58, WOLKE_DUNKEL);
+      } else if (wetter == "lightning" || wetter == "lightning-rainy") {
+        if (wetter == "lightning-rainy") tropfen(icx, icy + 14, 5, 8, REGEN);
+        blitz(icx + 4, icy + 26);
+        wolke(icx + drift / 2, icy - 8, 58, WOLKE_DUNKEL);
+      } else if (wetter == "fog") {
+        nebel(icx, icy);
+      } else if (wetter == "windy" || wetter == "windy-variant") {
+        wind(icx, icy);
+      } else {
+        wolke(icx + drift, icy, 56, WOLKE);       // unbekannt / exceptional
+      }
+
+      // Uhrzeit oben links, Datum oben rechts
+      auto zeit = id(esptime).now();
+      if (zeit.is_valid()) {
+        static const char *tage[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+        it.strftime(10, 4, id(f_mittel), TEXT, TextAlign::TOP_LEFT, "%H:%M", zeit);
+        it.printf(310, 10, id(f_klein), Color(210, 212, 218), TextAlign::TOP_RIGHT, "%s, %d.%d.",
+                  tage[(zeit.day_of_week + 6) % 7], zeit.day_of_month, zeit.month);
+      }
+      bool online = api::global_api_server != nullptr && api::global_api_server->is_connected();
+      if (!online) {
+        it.filled_circle(118, 18, 4, ROT);
+        it.print(126, 18, id(f_klein), ROT, TextAlign::CENTER_LEFT, "offline");
+      }
+
+      // große Außentemperatur mit Dezimalkomma
+      float t = id(mittelwert_temperatur).state;
+      char tbuf[12];
+      if (isnan(t)) snprintf(tbuf, sizeof(tbuf), "--°");
+      else if (t <= -10.0f) snprintf(tbuf, sizeof(tbuf), "%.0f°", t);
+      else snprintf(tbuf, sizeof(tbuf), "%.1f°", t);
+      for (char *c = tbuf; *c; c++) if (*c == '.') *c = ',';
+      it.print(312, 74, id(f_riesig), TEXT, TextAlign::CENTER_RIGHT, tbuf);
+
+      // Wetter in Worten
+      const char *text = "";
+      if (wetter == "sunny") text = "Sonnig";
+      else if (wetter == "clear-night") text = "Klar";
+      else if (wetter == "partlycloudy") text = "Heiter";
+      else if (wetter == "cloudy") text = "Bewölkt";
+      else if (wetter == "fog") text = "Nebel";
+      else if (wetter == "rainy") text = "Regen";
+      else if (wetter == "pouring") text = "Starkregen";
+      else if (wetter == "snowy") text = "Schnee";
+      else if (wetter == "snowy-rainy") text = "Schneeregen";
+      else if (wetter == "hail") text = "Hagel";
+      else if (wetter == "lightning" || wetter == "lightning-rainy") text = "Gewitter";
+      else if (wetter == "windy" || wetter == "windy-variant") text = "Windig";
+      else if (wetter == "exceptional") text = "Unwetter";
+      it.print(310, 118, id(f_mittel), Color(200, 200, 206), TextAlign::CENTER_RIGHT, text);
+
+      // unten: Luftfeuchte und Wind
+      const Color INFO(165, 168, 176);
+      float f = id(mittelwert_feuchte).state;
+      it.filled_triangle(166, 145, 161, 154, 171, 154, INFO);   // kleiner Tropfen
+      it.filled_circle(166, 155, 5, INFO);
+      if (isnan(f)) it.print(176, 153, id(f_klein), INFO, TextAlign::CENTER_LEFT, "-- %");
+      else it.printf(176, 153, id(f_klein), INFO, TextAlign::CENTER_LEFT, "%.0f %%", f);
+      float w = id(wetter_wind).state;
+      for (int i = 0; i < 3; i++)                               // kleines Wind-Symbol
+        it.filled_rectangle(238 + i * 2, 147 + i * 5, 14 - i * 4, 2, INFO);
+      if (isnan(w)) it.print(310, 153, id(f_klein), INFO, TextAlign::CENTER_RIGHT, "-- km/h");
+      else it.printf(310, 153, id(f_klein), INFO, TextAlign::CENTER_RIGHT, "%.0f km/h", w);
+
+interval:
+  # Putzrunden abschließen und Toms Avatar weiterschalten
+  - interval: 100ms
+    then:
+      - lambda: |-
+          uint32_t now = millis();
+          // Putzrunde abschließen: 2,5 s nach „nicht running“ (überbrückt kurze Pausen der Bürste)
+          // oder 12 s ohne Dauer-Meldung (Bürste außer Reichweite, HA zeigt noch running)
+          auto pruefe = [&](bool &lief, uint32_t start, uint32_t &stop, uint32_t dauer_ms,
+                            float sitzung, uint32_t &ende, int &final) {
+            if (!lief) return;
+            bool aus = (stop != 0 && now - stop > 2500) || (stop == 0 && now - dauer_ms > 12000);
+            if (!aus) return;
+            uint32_t bis = stop != 0 ? stop : dauer_ms;
+            final = (int) roundf(sitzung > 0 ? sitzung : (bis - start) / 1000.0f);
+            lief = false;
+            stop = 0;
+            ende = now;
+          };
+          pruefe(id(b1_lief), id(b1_start_ms), id(b1_stop_ms), id(b1_dauer_ms), id(b1_sitzung_s),
+                 id(b1_ende_ms), id(b1_final));
+          pruefe(id(b2_lief), id(b2_start_ms), id(b2_stop_ms), id(b2_dauer_ms), id(b2_sitzung_s),
+                 id(b2_ende_ms), id(b2_final));
+
+          // Avatare weiterschalten, solange sie zu sehen sind (Putzen + Ergebnisanzeige)
+          if (id(b1_lief) || (id(b1_ende_ms) != 0 && now - id(b1_ende_ms) < 8000)) {
+            id(tom_anim).next_frame();
+            id(tom_anim_klein).next_frame();
+          }
+          if (id(b2_lief) || (id(b2_ende_ms) != 0 && now - id(b2_ende_ms) < 8000)) {
+            id(sarah_anim).next_frame();
+            id(sarah_anim_klein).next_frame();
+          }

@@ -11,7 +11,7 @@ Meine [ESPHome](https://esphome.io)-Geräte für Home Assistant – jeweils mit 
 | [Lynx Monitor](Lynx%20Monitor) | D1 mini | Überwacht die MEGA-Sicherungen von 3 Victron Lynx Distributor (I²C) |
 | [BWWP-Steuerung](BWWP-Steuerung) | D1 mini + Servo + BH1750 | Drückt die Taste der Brauchwasser-Wärmepumpe und liest ihre Status-LED |
 | [Display Ofen](Display%20Ofen) | D1 mini + OLED SH1106 | Zeigt Außen, Feuchte, Puffer, Kamin und Solar-Akku am Ofen |
-| [Test Lilygo 2](Test%20Lilygo%202) | LILYGO T-Display S3 | Farbdisplay mit Außentemperatur und Luftfeuchte |
+| [Display Bad](Display%20Bad) | LILYGO T-Display S3 | Farbdisplay im Bad mit Außentemperatur und Luftfeuchte, Bluetooth-Proxy für die Zahnbürsten |
 | [Lichtsensor](Lichtsensor) | D1 mini + GY-302 (BH1750) | Helligkeit in Lux |
 
 Das passende Dashboard für die Victron-Anlage liegt im Repository [HA-Dashboards](https://github.com/ossilampe/HA-Dashboards/tree/main/Solar%20Uebersicht).
