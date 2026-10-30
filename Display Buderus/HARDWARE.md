@@ -175,5 +175,4 @@ Diese Angaben sind nicht bestätigt und hier nach dem Einbau zu ergänzen:
 - [ ] Stromversorgung des ESP: ____________
 - [ ] Masse für K1 NO wirklich an Klemme 1: ____________
 - [ ] BR1 wirklich offen: ____________
-- [ ] 1-kΩ-Pull-downs: nur an GPIO21 oder auch an weiteren Eingängen: ____________
 - [ ] Abgleich des Fühlers bei etwa 55 °C geprüft: ____________
