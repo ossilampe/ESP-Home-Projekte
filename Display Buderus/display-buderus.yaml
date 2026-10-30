@@ -47,12 +47,18 @@ captive_portal:
 
 # ---------------------------------------------------------------------------
 # Bedienlogik (komplett auf dem ESP)
-#   Taste 1 (GPIO21): Display wecken / naechste Seite (1 Uebersicht, 2 Temperaturen, 3 Gas, 4 Kosten, 5 Gesamt, 6 Puffer)
-#   Taste 2 (GPIO14): Seite "Gasheizung"  - erneut druecken schaltet "Gas unterdruecken" um
-#   Taste 3 (GPIO0) : Seite "Warmwasser"  - erneut druecken schaltet "WW zuheizen" um
-#   Nach 15 s ohne Tastendruck springt das Display von Seite 7/8 zurueck auf die Uebersicht.
+#   Taste 1 (GPIO21): Display wecken / naechste Seite (1 Automatik, 2 Temperaturen, 3 Puffer, 4 Gas, 5 Kosten, 6 Gesamt)
+#   Taste 2 (GPIO14): Seite "Warmwasser"  - erneut druecken schaltet "WW zuheizen" um
+#   Taste 3 (GPIO0) : Seite "Gasheizung"  - erneut druecken schaltet "Gas unterdruecken" um
+#   Nach 15 s ohne Tastendruck springt das Display von Seite 8/9 zurueck auf Seite 1 (Automatik).
 #   Displayschoner: nach "Displayschoner nach" Sekunden wird gedimmt und ein Ruhebild gezeigt.
 #   Im Schoner weckt der erste Tastendruck nur auf (schaltet nichts um).
+#   Gas-Automatik (laeuft komplett auf dem ESP): NTC-Fuehler am Ofen ueber "Gas sperren ab" -> Relais
+#   "Gas unterdruecken" EIN (Gasheizung aus); erst unter Schwelle minus Hysterese und nach der
+#   Freigabe-Verzoegerung wieder AUS. Die Werte kommen aus HA und bleiben im ESP gespeichert.
+#   Unter "frei unter" wird jede Sperre aufgehoben: eine Sperre der Automatik nach der
+#   Freigabe-Verzoegerung, eine Sperre von Hand sofort. Eine Freigabe von Hand ueber "Gas sperren ab"
+#   wird sofort wieder gesperrt - die Automatik stellt immer den Zustand nach den Schaltwerten her.
 # ---------------------------------------------------------------------------
 globals:
   - id: current_page
@@ -61,14 +67,37 @@ globals:
   - id: last_activity
     type: uint32_t
     initial_value: '0'
+  - id: letzter_druck      # Sperrzeit: 400 ms nach einem Tastendruck zaehlt keine Taste
+    type: uint32_t
+    initial_value: '0'
+  - id: gas_vor_ww         # Gas war vor dem Warmwasser gesperrt
+    type: bool
+    initial_value: 'false'
+  - id: gas_vor_ww_auto    # ... und die Sperre kam von der Automatik
+    type: bool
+    initial_value: 'false'
   - id: schoner_aktiv
     type: bool
     initial_value: 'false'
+  - id: ofen_warm          # Automatik hat wegen warmem Ofen gesperrt
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+  - id: auto_gesperrt      # die aktuelle Sperre kommt von der Automatik (nicht von Hand)
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+  - id: unter_seit         # seit wann der Ofen unter der Freigabe-Temperatur ist (0 = nicht)
+    type: uint32_t
+    initial_value: '0'
 
 
 time:
   - platform: homeassistant
     id: esptime
+
+# Liefert den Neustartgrund fuer "Neustart Grund" und schreibt ihn beim Start ins Log
+debug:
 
 binary_sensor:
   - platform: gpio
@@ -80,14 +109,19 @@ binary_sensor:
     internal: true
     filters:
       - delayed_on: 30ms
+      - delayed_off: 100ms  # Prellen und Stoerungen beim Loslassen zaehlen nicht als neuer Druck
     on_press:
       then:
-        - lambda: |-
-            if (!id(schoner_aktiv) && id(backlight).current_values.is_on()) {
-              id(current_page) = (id(current_page) >= 6) ? 1 : id(current_page) + 1;
-            }
-            id(last_activity) = millis();
-        - script.execute: wake_display
+        - if:
+            condition:
+              lambda: 'if (millis() - id(letzter_druck) < 400) return false; id(letzter_druck) = millis(); return true;'
+            then:
+              - lambda: |-
+                  if (!id(schoner_aktiv) && id(backlight).current_values.is_on()) {
+                    id(current_page) = (id(current_page) >= 6) ? 1 : id(current_page) + 1;
+                  }
+                  id(last_activity) = millis();
+              - script.execute: wake_display
 
   - platform: gpio
     pin:
@@ -98,17 +132,22 @@ binary_sensor:
     internal: true
     filters:
       - delayed_on: 30ms
+      - delayed_off: 100ms  # Prellen und Stoerungen beim Loslassen zaehlen nicht als neuer Druck
     on_press:
       then:
         - if:
             condition:
-              lambda: 'return !id(schoner_aktiv) && id(current_page) == 7 && id(backlight).current_values.is_on();'
+              lambda: 'if (millis() - id(letzter_druck) < 400) return false; id(letzter_druck) = millis(); return true;'
             then:
-              - switch.toggle: gas_unterdruecken
-        - lambda: |-
-            id(current_page) = 7;
-            id(last_activity) = millis();
-        - script.execute: wake_display
+              - if:
+                  condition:
+                    lambda: 'return !id(schoner_aktiv) && id(current_page) == 9 && id(backlight).current_values.is_on();'
+                  then:
+                    - switch.toggle: ww_zuheizen
+              - lambda: |-
+                  id(current_page) = 9;
+                  id(last_activity) = millis();
+              - script.execute: wake_display
 
   - platform: gpio
     pin:
@@ -119,17 +158,22 @@ binary_sensor:
     internal: true
     filters:
       - delayed_on: 30ms
+      - delayed_off: 100ms  # Prellen und Stoerungen beim Loslassen zaehlen nicht als neuer Druck
     on_press:
       then:
         - if:
             condition:
-              lambda: 'return !id(schoner_aktiv) && id(current_page) == 8 && id(backlight).current_values.is_on();'
+              lambda: 'if (millis() - id(letzter_druck) < 400) return false; id(letzter_druck) = millis(); return true;'
             then:
-              - switch.toggle: ww_zuheizen
-        - lambda: |-
-            id(current_page) = 8;
-            id(last_activity) = millis();
-        - script.execute: wake_display
+              - if:
+                  condition:
+                    lambda: 'return !id(schoner_aktiv) && id(current_page) == 8 && id(backlight).current_values.is_on();'
+                  then:
+                    - switch.toggle: gas_unterdruecken
+              - lambda: |-
+                  id(current_page) = 8;
+                  id(last_activity) = millis();
+              - script.execute: wake_display
 
 
   # Heizung Haus: 3-Wege-Ventil (Gas-Pumpe aus = Haus aus dem Puffer) und Zirkulationspumpe Puffer -> Haus
@@ -148,20 +192,53 @@ binary_sensor:
 switch:
   - platform: gpio
     pin: GPIO1
+    id: ww_relais
+    restore_mode: RESTORE_DEFAULT_OFF
+  # Schaltet das Relais nur ueber den Ablauf ww_ein / ww_aus (Taste und HA gleichermassen)
+  - platform: template
     id: ww_zuheizen
     name: "WW zuheizen"
     icon: "mdi:water-boiler"
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_mode: DISABLED
+    lambda: 'return id(ww_relais).state;'
+    turn_on_action:
+      - script.execute: ww_ein
+    turn_off_action:
+      - script.execute: ww_aus
   - platform: gpio
     pin: GPIO2
     id: gas_unterdruecken
     name: "Gas unterdruecken"
     icon: "mdi:gas-burner"
     restore_mode: RESTORE_DEFAULT_OFF
+    # Freigabe von Hand (Taste oder HA) beendet eine Sperre der Automatik samt Timer
+    on_turn_off:
+      - lambda: |-
+          id(auto_gesperrt) = false;
+          id(ofen_warm) = false;
+          id(unter_seit) = 0;
+  - platform: template
+    name: "Gas Automatik"
+    id: gas_automatik
+    icon: "mdi:thermostat-auto"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
 
 
 # Displayschoner in HA einstellbar (0 = aus, Display bleibt hell)
 number:
+  - platform: template
+    name: "WW zuheizen bis"
+    id: ww_bis
+    icon: "mdi:thermometer-check"
+    unit_of_measurement: "°C"
+    min_value: 30
+    max_value: 70
+    step: 0.5
+    initial_value: 55.5
+    optimistic: true
+    restore_value: true
+    entity_category: config
   - platform: template
     name: "Displayschoner nach"
     id: schoner_nach
@@ -174,6 +251,13 @@ number:
     optimistic: true
     restore_value: true
     entity_category: config
+    on_value:
+      # neue Zeit gilt sofort (Timer neu starten) - nicht beim Hochfahren, da laeuft on_boot
+      - if:
+          condition:
+            lambda: 'return millis() > 10000;'
+          then:
+            - script.execute: wake_display
   - platform: template
     name: "Displayschoner Helligkeit"
     id: schoner_hell
@@ -186,8 +270,112 @@ number:
     optimistic: true
     restore_value: true
     entity_category: config
+    on_value:
+      - if:
+          condition:
+            lambda: 'return id(schoner_aktiv) && millis() > 10000;'
+          then:
+            - light.turn_on:
+                id: backlight
+                brightness: !lambda 'return x / 100.0f;'
+
+  # Gas-Automatik: Einstellwerte aus HA, im ESP gespeichert (gelten auch ohne HA weiter)
+  - platform: template
+    name: "Gas sperren ab"
+    id: gas_sperre_ab
+    icon: "mdi:thermometer-chevron-up"
+    unit_of_measurement: "°C"
+    min_value: 20
+    max_value: 90
+    step: 1
+    initial_value: 40
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "Gas Hysterese"
+    id: gas_hysterese
+    icon: "mdi:arrow-expand-vertical"
+    unit_of_measurement: "K"
+    min_value: 1
+    max_value: 20
+    step: 1
+    initial_value: 5
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "Gas Freigabe nach"
+    id: gas_freigabe_nach
+    icon: "mdi:timer-sand"
+    unit_of_measurement: "min"
+    min_value: 0
+    max_value: 120
+    step: 5
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+
+  # NTC-Kennwerte zum Abgleich des Ofen-Fuehlers
+  - platform: template
+    name: "Ofen NTC R25"
+    id: ntc_r25
+    icon: "mdi:omega"
+    unit_of_measurement: "kΩ"
+    min_value: 1
+    max_value: 100
+    step: 0.1
+    initial_value: 10
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    name: "Ofen NTC B-Wert"
+    id: ntc_b
+    icon: "mdi:chart-bell-curve"
+    min_value: 2500
+    max_value: 5000
+    step: 10
+    initial_value: 3950
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    name: "Ofen Korrektur"
+    id: ofen_korrektur
+    icon: "mdi:tune-vertical"
+    unit_of_measurement: "K"
+    min_value: -10
+    max_value: 10
+    step: 0.5
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    entity_category: config
 
 script:
+  # Warmwasser ein: Gas erst freigeben, 1 s spaeter zuheizen. Den Gas-Zustand merken fuer ww_aus.
+  - id: ww_ein
+    mode: single
+    then:
+      - lambda: |-
+          id(gas_vor_ww) = id(gas_unterdruecken).state;
+          id(gas_vor_ww_auto) = id(auto_gesperrt);
+      - switch.turn_off: gas_unterdruecken
+      - delay: 1s
+      - switch.turn_on: ww_relais
+  # Warmwasser aus: Relais aus und eine vorher aktive Gas-Sperre wieder herstellen
+  - id: ww_aus
+    mode: single
+    then:
+      - script.stop: ww_ein
+      - switch.turn_off: ww_relais
+      - if:
+          condition:
+            lambda: 'return id(gas_vor_ww);'
+          then:
+            - switch.turn_on: gas_unterdruecken
+            - lambda: |-
+                id(auto_gesperrt) = id(gas_vor_ww_auto);
+                id(gas_vor_ww) = false;
   - id: wake_display
     mode: restart
     then:
@@ -212,18 +400,59 @@ script:
             - component.update: disp
 
 
+# Hintergrundbeleuchtung: GPIO38 geht an den LED-Treiber AW9364. Der wird nicht per PWM gedimmt,
+# sondern zaehlt Impulse: nach dem Einschalten volle Helligkeit (Stufe 16), jeder kurze Low-Impuls
+# eine Stufe dunkler (16 -> 15 -> ... -> 1 -> 16), Low laenger als 2,5 ms = aus.
 output:
-  - platform: ledc
+  - platform: gpio
     pin: GPIO38
-    id: gpio38
-    frequency: 2000
+    id: bl_en
+  - platform: template
+    id: backlight_out
+    type: float
+    write_action:
+      - lambda: |-
+          static int stufe = 0;  // aktuelle Stufe des AW9364, 0 = aus
+          int neu = (int) roundf(state * 16.0f);
+          if (state > 0.0f && neu < 1) neu = 1;
+          if (neu > 16) neu = 16;
+          if (neu == stufe) return;
+          if (neu == 0) {
+            id(bl_en).turn_off();
+            delay(3);
+            stufe = 0;
+            return;
+          }
+          if (stufe == 0) {
+            id(bl_en).turn_on();
+            delayMicroseconds(40);
+            stufe = 16;
+          }
+          int impulse = (stufe - neu + 16) % 16;
+          for (int i = 0; i < impulse; i++) {
+            id(bl_en).turn_off();
+            delayMicroseconds(2);
+            id(bl_en).turn_on();
+            delayMicroseconds(2);
+          }
+          stufe = neu;
 
 light:
   - platform: monochromatic
-    output: gpio38
+    output: backlight_out
     name: "Backlight"
     id: backlight
     restore_mode: RESTORE_DEFAULT_ON
+    gamma_correct: 1.0              # die 16 Stufen des AW9364 sind schon passend abgestuft
+    default_transition_length: 0s   # kein Ueberblenden beim Ein-/Ausschalten aus HA
+    on_turn_on:
+      # auch beim Einschalten aus HA den Displayschoner-Timer starten (nicht waehrend des Hochfahrens,
+      # da startet on_boot den Timer und das Display ist evtl. noch nicht bereit)
+      - if:
+          condition:
+            lambda: 'return millis() > 10000;'
+          then:
+            - script.execute: wake_display
 
 image:
   - file: "image/brenner_on.png"
@@ -296,14 +525,70 @@ color:
     red: 100%
     green: 35%
     blue: 65%
+  - id: lila
+    red: 65%
+    green: 45%
+    blue: 100%
   - id: dunkel
     red: 12%
     green: 12%
     blue: 12%
 
 
-# Werte aus HA - nur Anzeige, die Steuerung haengt nicht davon ab
 sensor:
+  # NTC-Fuehler am Ofen (vom HmIP-STE2-PCB) als Spannungsteiler:
+  #   3V3 -- NTC -- GPIO10 -- 10 kOhm -- GND
+  - platform: adc
+    id: ofen_adc
+    pin: GPIO10
+    attenuation: 12db
+    update_interval: 5s
+    internal: true
+    filters:
+      - median:
+          window_size: 3
+          send_every: 1
+  - platform: resistance
+    id: ofen_ntc_r
+    name: "Ofen NTC Widerstand"
+    sensor: ofen_adc
+    configuration: UPSTREAM
+    resistor: 10kΩ
+    reference_voltage: 3.3V
+    entity_category: diagnostic
+  # Temperatur aus dem Widerstand (Beta-Formel); Kennwerte kommen aus HA und bleiben im ESP gespeichert,
+  # damit der unbekannte NTC-Typ ohne neues Flashen abgeglichen werden kann
+  - platform: template
+    name: "Ofen Fuehler"
+    id: ofen_fuehler
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 5s
+    lambda: |-
+      float r = id(ofen_ntc_r).state;
+      if (isnan(r) || r < 100.0f || r > 150000.0f) return NAN;  // Kurzschluss oder Fuehler ab (offen misst der ADC ca. 230 kOhm)
+      float r25 = id(ntc_r25).state * 1000.0f;
+      float b = id(ntc_b).state;
+      float t = 1.0f / (1.0f / 298.15f + logf(r / r25) / b) - 273.15f;
+      return t + id(ofen_korrektur).state;
+  # Restzeit bis zur Freigabe der Gasheizung fuer HA (0 = es laeuft keine Wartezeit)
+  - platform: template
+    name: "Gas Freigabe in"
+    id: gas_freigabe_rest
+    icon: "mdi:timer-sand"
+    unit_of_measurement: s
+    device_class: duration
+    accuracy_decimals: 0
+    update_interval: 10s
+    lambda: |-
+      if (!id(gas_automatik).state || !id(ofen_warm) || id(unter_seit) == 0) return 0.0f;
+      uint32_t warte_ms = (uint32_t) (id(gas_freigabe_nach).state * 60000);
+      uint32_t vorbei = millis() - id(unter_seit);
+      return vorbei >= warte_ms ? 0.0f : (float) ((warte_ms - vorbei + 999) / 1000);
+
+  # Werte aus HA - nur Anzeige, die Steuerung haengt nicht davon ab
   - platform: homeassistant
     id: ofen
     entity_id: sensor.temperaturfuehler_puffer_2_temperaturfuehler_puffer_ofen2_temperatur_ch1
@@ -384,6 +669,16 @@ sensor:
     entity_id: sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_temperatur_2
     internal: true
 
+  - platform: homeassistant
+    id: ww_puffer
+    entity_id: sensor.shellyplus_temperatur_bwwp_puffer_temperature
+    internal: true
+
+  - platform: uptime
+    name: "Laufzeit"
+    update_interval: 60s
+    entity_category: diagnostic
+
   - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
     name: "WiFi Signal dB"
     id: wifi_signal_db
@@ -391,24 +686,45 @@ sensor:
     entity_category: "diagnostic"
 
 
-# 8-Bit-Parallelbus des T-Display S3 (WR = GPIO8, D0-D7)
 spi:
-  type: octal
-  clk_pin: GPIO8
-  data_pins: [GPIO39, GPIO40, GPIO41, GPIO42, GPIO45, GPIO46, GPIO47, GPIO48]
+  # 8-Bit-Parallelbus des T-Display S3 (WR = GPIO8, D0-D7)
+  - id: spi_display
+    type: octal
+    clk_pin: GPIO8
+    data_pins: [GPIO39, GPIO40, GPIO41, GPIO42, GPIO45, GPIO46, GPIO47, GPIO48]
 
 # Nativer ESPHome-Treiber (ersetzt die alte externe Komponente tdisplays3)
 # schaltet GPIO15 (LCD-Strom) und GPIO9 (RD) selbst ein
 text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Neustart Grund"
+      entity_category: diagnostic
   - platform: homeassistant
     id: gas_stichtag
     entity_id: input_datetime.gas_stichtag
     internal: true
+  # Restzeit bis zur Gas-Freigabe als Text fuer HA, z. B. "12 min 34 s" ("-" = keine Wartezeit)
+  - platform: template
+    name: "Gas Freigabe Restzeit"
+    id: gas_freigabe_text
+    icon: "mdi:timer-sand"
+    update_interval: 10s
+    lambda: |-
+      if (!id(gas_automatik).state || !id(ofen_warm) || id(unter_seit) == 0) return {"-"};
+      uint32_t warte_ms = (uint32_t) (id(gas_freigabe_nach).state * 60000);
+      uint32_t vorbei = millis() - id(unter_seit);
+      uint32_t rest_s = vorbei >= warte_ms ? 0 : (warte_ms - vorbei + 999) / 1000;
+      char buf[24];
+      if (rest_s >= 60) snprintf(buf, sizeof(buf), "%u min %02u s", (unsigned) (rest_s / 60), (unsigned) (rest_s % 60));
+      else snprintf(buf, sizeof(buf), "%u s", (unsigned) rest_s);
+      return {std::string(buf)};
 
 
 display:
   - platform: mipi_spi
     model: T-DISPLAY-S3
+    spi_id: spi_display
     id: disp
     update_interval: 1s
     rotation: 0
@@ -448,9 +764,11 @@ display:
 
       // Anzeige der Gasheizung: true = Relais "Gas unterdruecken" AUS bedeutet Gasheizung AUS
       // (falls falsch herum: auf false stellen - aendert nur die Anzeige, nicht die Steuerung)
-      const bool GAS_ANZEIGE_INVERTIERT = true;
+      const bool GAS_ANZEIGE_INVERTIERT = false;
       bool gas_aus = GAS_ANZEIGE_INVERTIERT ? !id(gas_unterdruecken).state : id(gas_unterdruecken).state;
       bool ww_gas = id(ww_zuheizen).state;
+      // Ofen: lokaler NTC-Fuehler, solange der noch keinen Wert hat der Funkfuehler aus HA
+      float ofen_t = isnan(id(ofen_fuehler).state) ? id(ofen).state : id(ofen_fuehler).state;
 
       // Tastenmarkierung: farbiger Balken am linken Rand + Pfeil zur Taste
       const int XM = 93;  // Mitte rechts vom Balken
@@ -476,7 +794,7 @@ display:
         }
         float po = id(puffer_o).state;
         if (!isnan(po)) {
-          it.printf(W / 2, 185 + dy, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Puffer %.0f °C", po);
+          it.printf(W / 2, 185 + dy, id(roboto2), id(red), TextAlign::TOP_CENTER, "Puffer %.0f °C", po);
         }
         if (!online) {
           it.print(W / 2, 212 + dy, id(roboto2), id(red), TextAlign::TOP_CENTER, "OFFLINE");
@@ -486,23 +804,10 @@ display:
 
       header();
 
-      // Pfeil-Hoehe = Lage der Taste: Menue oben (70), Gasheizung Mitte (175), Warmwasser unten (290)
-      if (id(current_page) == 1) {
-        titel("Uebersicht", id(cyan), 70);
-        it.print(xl, 75, id(roboto2), "Gasheizung");
-        it.print(W - 2, 75, id(roboto2), gas_aus ? id(red) : id(gren), TextAlign::TOP_RIGHT, gas_aus ? "AUS" : "EIN");
-        it.print(xl, 105, id(roboto2), "WW mit Gas");
-        it.print(W - 2, 105, id(roboto2), ww_gas ? id(gren) : id(red), TextAlign::TOP_RIGHT, ww_gas ? "EIN" : "AUS");
-        it.line(xl, 140, W - 5, 140, id(grey));
-        row(155, "Ofen", id(ofen).state, "%.1f °C");
-        row(185, "PS.-O", id(puffer_o).state, "%.1f °C");
-        row(215, "PS.-U", id(puffer_u).state, "%.1f °C");
-        row(245, "V-Gas", id(v_gas).state, "%.1f °C");
-        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "1 / 6");
-
-      } else if (id(current_page) == 2) {
+      // Pfeil-Hoehe = Lage der Taste: Menue oben (70), Warmwasser Mitte (175), Gasheizung unten (290)
+      if (id(current_page) == 2) {
         titel("Temperaturen", id(red), 70);
-        row(75,  "Ofen",   id(ofen).state,     "%.1f °C");
+        row(75,  "Ofen",   ofen_t,     "%.1f °C");
         row(105, "R-Gas",  id(r_gas).state,    "%.1f °C");
         row(135, "V-Gas",  id(v_gas).state,    "%.1f °C");
         row(165, "V-BWWP", id(v_bwwp).state,   "%.1f °C");
@@ -510,7 +815,7 @@ display:
         row(225, "PS.-U",  id(puffer_u).state, "%.1f °C");
         it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "2 / 6");
 
-      } else if (id(current_page) == 3) {
+      } else if (id(current_page) == 4) {
         titel("Gas", id(yellow), 70);
         it.print(W - 2, 40, id(roboto2), id(grey), TextAlign::TOP_RIGHT, "kWh");  // Einheit einmal oben statt in jeder Zeile
         row(75,  "Heute",   id(verbrauch_heute_kwh).state,      "%.1f");
@@ -518,9 +823,9 @@ display:
         row(135, "Vorges.", id(verbrauch_vorgestern_kwh).state, "%.1f");
         it.line(xl, 170, W - 5, 170, id(grey));
         row(185, "ZS",      id(zaehlertsand_gas).state,         "%.1f m³");
-        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "3 / 6");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "4 / 6");
 
-      } else if (id(current_page) == 4) {
+      } else if (id(current_page) == 5) {
         // Kosten = Verbrauch (kWh) x Gaspreis aus HA (input_number.gasreis_eingabe)
         float preis = id(gaspreis).state;
         titel("Kosten", id(gren), 70);
@@ -530,9 +835,9 @@ display:
         it.line(xl, 170, W - 5, 170, id(grey));
         row(185, "Preis",   preis,                                      "%.3f €");
         it.print(W - 2, 208, id(roboto2), id(grey), TextAlign::TOP_RIGHT, "pro kWh");
-        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "4 / 6");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "5 / 6");
 
-      } else if (id(current_page) == 5) {
+      } else if (id(current_page) == 6) {
         // Gesamtkosten inkl. Grundkosten - berechnet in HA (sensor.gas_kosten_*)
         titel("Gesamt", id(orange), 70);
         row(75,  "Woche", id(kosten_woche).state, "%.2f €");
@@ -544,9 +849,9 @@ display:
           it.printf(xl, 180, id(roboto2), id(grey), "Jahr ab %s.%s.", st.substr(8, 2).c_str(), st.substr(5, 2).c_str());
         }
         it.print(xl, 205, id(roboto2), id(grey), "inkl. Grundkosten");
-        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "5 / 6");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "6 / 6");
 
-      } else if (id(current_page) == 6) {
+      } else if (id(current_page) == 3) {
         // Puffer: Tank zeigt die echte Temperaturverteilung - oben Farbe von "oben", unten von "unten"
         titel("Puffer", id(pink), 70);
         float to = id(puffer_oben_k).state;
@@ -605,10 +910,50 @@ display:
         it.print(VX - VL - 4, VY - 11, id(roboto2), WEISS, TextAlign::TOP_RIGHT, "Puffer");
         it.print(VX + VL + 4, VY - 11, id(roboto2), WEISS, "Gas");
         it.print(VX, VY - VL - 23, id(roboto2), WEISS, TextAlign::TOP_CENTER, "Haus");
-        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "6 / 6");
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "3 / 6");
 
-      } else if (id(current_page) == 7) {
-        titel("Gasheizung", id(blue), 175);
+      } else if (id(current_page) == 1) {
+        // Gas-Automatik: nur Anzeige - eingestellt wird in Home Assistant
+        titel("Automatik", id(lila), 70);
+        float tf = id(ofen_fuehler).state;
+        it.print(xl, 72, id(roboto2), "Ofen");
+        if (isnan(tf)) it.print(W - 2, 72, id(roboto2), id(grey), TextAlign::TOP_RIGHT, "--");
+        else it.printf(W - 2, 72, id(roboto2), TextAlign::TOP_RIGHT, "%.1f °C", tf);
+        it.print(xl, 98, id(roboto2), "Automatik");
+        bool auto_an = id(gas_automatik).state;
+        it.print(W - 2, 98, id(roboto2), auto_an ? id(gren) : id(grey), TextAlign::TOP_RIGHT, auto_an ? "EIN" : "AUS");
+        it.print(xl, 124, id(roboto2), "Gas");
+        bool gesperrt = id(gas_unterdruecken).state;
+        it.print(W - 2, 124, id(roboto2), gesperrt ? id(red) : id(gren), TextAlign::TOP_RIGHT, gesperrt ? "gesperrt" : "frei");
+        it.print(xl, 150, id(roboto2), "WW mit Gas");
+        it.print(W - 2, 150, id(roboto2), ww_gas ? id(gren) : id(red), TextAlign::TOP_RIGHT, ww_gas ? "EIN" : "AUS");
+        it.line(xl, 177, W - 5, 177, id(grey));
+        float ab = id(gas_sperre_ab).state;
+        it.print(xl, 186, id(roboto2), id(grey), "Hysterese");
+        it.printf(W - 2, 186, id(roboto2), TextAlign::TOP_RIGHT, "%.0f K", id(gas_hysterese).state);
+        it.print(xl, 212, id(roboto2), id(grey), "Sperre ab");
+        it.printf(W - 2, 212, id(roboto2), TextAlign::TOP_RIGHT, "%.0f °C", ab);
+        it.print(xl, 238, id(roboto2), id(grey), "frei unter");
+        it.printf(W - 2, 238, id(roboto2), TextAlign::TOP_RIGHT, "%.0f °C", ab - id(gas_hysterese).state);
+        // Freigabe: eingestellte Zeit - laeuft die Wartezeit, zaehlt dieselbe Zeile in Orange herunter (mm:ss)
+        it.print(xl, 264, id(roboto2), id(grey), "Freigabe");
+        if (auto_an && id(ofen_warm) && id(unter_seit) != 0) {
+          uint32_t warte_ms = (uint32_t) (id(gas_freigabe_nach).state * 60000);
+          uint32_t vorbei = millis() - id(unter_seit);
+          uint32_t rest_s = vorbei >= warte_ms ? 0 : (warte_ms - vorbei + 999) / 1000;
+          it.printf(W - 2, 264, id(roboto2), id(orange), TextAlign::TOP_RIGHT, "%u:%02u", (unsigned) (rest_s / 60), (unsigned) (rest_s % 60));
+        } else {
+          it.printf(W - 2, 264, id(roboto2), TextAlign::TOP_RIGHT, "%.0f min", id(gas_freigabe_nach).state);
+        }
+        it.print(XM, 300, id(roboto2), id(grey), TextAlign::TOP_CENTER, "1 / 6");
+
+      } else if (id(current_page) == 8) {
+        titel("Gasheizung", id(gren), 290);
+        if (id(gas_automatik).state) {
+          it.printf(XM, 112, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Auto ab %.0f °C", id(gas_sperre_ab).state);
+        } else {
+          it.print(XM, 112, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Automatik aus");
+        }
         if (gas_aus) {
           it.print(XM, 80, id(roboto1), id(red), TextAlign::TOP_CENTER, "AUS");
           it.image(XM, 135, id(brenner_off), ImageAlign::TOP_CENTER);
@@ -619,8 +964,13 @@ display:
         it.print(XM, 262, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Taste erneut");
         it.print(XM, 285, id(roboto2), id(grey), TextAlign::TOP_CENTER, "= umschalten");
 
-      } else if (id(current_page) == 8) {
-        titel("Warmwasser", id(gren), 290);
+      } else if (id(current_page) == 9) {
+        titel("Warmwasser", id(blue), 175);
+        if (isnan(id(ww_puffer).state)) {
+          it.print(XM, 112, id(roboto2), id(grey), TextAlign::TOP_CENTER, "Puffer -- °C");
+        } else {
+          it.printf(XM, 112, id(roboto2), TextAlign::TOP_CENTER, "Puffer %.1f °C", id(ww_puffer).state);
+        }
         if (ww_gas) {
           it.print(XM, 80, id(roboto1), id(gren), TextAlign::TOP_CENTER, "EIN");
           it.image(XM, 135, id(bwwp_on), ImageAlign::TOP_CENTER);
@@ -633,11 +983,65 @@ display:
       }
 
 
-# Von den Schaltseiten nach 15 s automatisch zurueck zur Uebersicht
+# Von den Schaltseiten nach 15 s automatisch zurueck auf Seite 1 (Automatik)
 interval:
+  # Gas-Automatik nach Ofentemperatur (NTC am ESP) - laeuft auch ohne WLAN und HA
+  - interval: 5s
+    then:
+      - lambda: |-
+          // Warmwasser fertig: zuheizen aus (ww_aus stellt die Gas-Sperre wieder her)
+          float p = id(ww_puffer).state;
+          if (id(ww_relais).state && !isnan(p) && p >= id(ww_bis).state) {
+            id(ww_aus).execute();
+            return;
+          }
+          // Solange Warmwasser zuheizt, braucht es Gas: die Automatik sperrt dann nicht
+          if (id(ww_relais).state || id(ww_ein).is_running()) return;
+          if (!id(gas_automatik).state) return;
+          float t = id(ofen_fuehler).state;
+          if (isnan(t)) {
+            // Fuehler gestoert: Sperre aufheben, damit das Haus nicht auskuehlt
+            if (id(ofen_warm)) {
+              id(ofen_warm) = false;
+              id(unter_seit) = 0;
+              id(gas_unterdruecken).turn_off();
+            }
+            return;
+          }
+          float ein = id(gas_sperre_ab).state;
+          float aus = ein - id(gas_hysterese).state;
+          if (!id(gas_unterdruecken).state) {
+            // Gasheizung frei: sperren, wenn der Ofen ueber "Gas sperren ab" steigt
+            id(ofen_warm) = false;
+            id(unter_seit) = 0;
+            if (t >= ein) {
+              id(ofen_warm) = true;
+              id(auto_gesperrt) = true;
+              id(gas_unterdruecken).turn_on();   // Ofen warm -> Gasheizung sperren
+            }
+          } else {
+            // Gasheizung gesperrt: unter "frei unter" wieder freigeben - eine Sperre der Automatik
+            // nach der Freigabe-Verzoegerung, eine Sperre von Hand sofort
+            id(ofen_warm) = true;
+            if (t < aus && !id(auto_gesperrt)) {
+              id(ofen_warm) = false;
+              id(unter_seit) = 0;
+              id(gas_unterdruecken).turn_off();    // von Hand gesperrt, Ofen kalt -> sofort frei
+            } else if (t < aus) {
+              if (id(unter_seit) == 0) id(unter_seit) = millis();
+              if (millis() - id(unter_seit) >= (uint32_t) (id(gas_freigabe_nach).state * 60000)) {
+                id(ofen_warm) = false;
+                id(unter_seit) = 0;
+                id(gas_unterdruecken).turn_off();  // Ofen kalt -> Gasheizung wieder frei
+              }
+            } else {
+              id(unter_seit) = 0;
+            }
+          }
+
   - interval: 1s
     then:
       - lambda: |-
-          if (id(current_page) >= 7 && millis() - id(last_activity) > 15000) {
+          if (id(current_page) >= 8 && millis() - id(last_activity) > 15000) {
             id(current_page) = 1;
           }

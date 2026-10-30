@@ -10,14 +10,16 @@ Die ganze Steuerung läuft **auf dem ESP selbst**. Fällt WLAN oder Home Assista
 
 ## Hardware
 
+Die komplette Verdrahtung mit Plänen, Schaltplan und Anschluss am Buderus-Modul M071 steht im [Hardware Anschlussplan](HARDWARE.md).
+
 | Teil | Hinweis |
 |---|---|
 | **LILYGO T-Display S3** | ESP32-S3 mit 16 MB Flash und Octal-PSRAM, 1,9″-Farbdisplay 170 × 320 (ST7789, 8-Bit parallel), hochkant |
 | Relais „WW zuheizen“ | GPIO1 |
 | Relais „Gas unterdruecken“ | GPIO2 |
 | Taste 1 – Menü | GPIO21 (externe Taste, links oben neben dem Display) |
-| Taste 2 – Gasheizung | GPIO14 (links in der Mitte) |
-| Taste 3 – Warmwasser | GPIO0 (links unten) – Boot-Pin: beim Einschalten gedrückt halten = Flash-Modus |
+| Taste 2 – Warmwasser (blau) | GPIO14 (links in der Mitte) |
+| Taste 3 – Gasheizung (grün) | GPIO0 (links unten) – Boot-Pin: beim Einschalten gedrückt halten = Flash-Modus |
 | Hintergrundbeleuchtung | GPIO38 per PWM |
 
 ## Bedienung
@@ -36,8 +38,8 @@ Die ganze Steuerung läuft **auf dem ESP selbst**. Fällt WLAN oder Home Assista
 ```mermaid
 flowchart LR
     T1["Taste Menü"] --> ESP["T-Display S3"]
-    T2["Taste Gasheizung"] --> ESP
-    T3["Taste Warmwasser"] --> ESP
+    T2["Taste Warmwasser"] --> ESP
+    T3["Taste Gasheizung"] --> ESP
     ESP --> R1["Relais Gas unterdrücken"]
     ESP --> R2["Relais WW zuheizen"]
     ESP <-->|"Zustände + Werte (wenn WLAN da ist)"| HA["Home Assistant"]
@@ -53,8 +55,8 @@ flowchart LR
 | 4 Kosten | Kosten heute/gestern/vorgestern = kWh × Gaspreis (rechnet der ESP), darunter der Gaspreis |
 | 5 Gesamt | Kosten Woche/Monat/Jahr inkl. Grundkosten (rechnet Home Assistant, siehe unten) |
 | 6 Puffer | Tank mit Farbverlauf nach echter Temperatur oben/unten (blau ≤ 30 °C, rot ≥ 70 °C), Pumpe Puffer → Haus (grün = an, rot = aus), 3-Wege-Ventil Puffer/Haus/Gas |
-| Gasheizung | groß EIN/AUS mit Brenner-Bild – über Taste 2 |
-| Warmwasser | groß EIN/AUS mit BWWP-Bild – über Taste 3 |
+| Gasheizung | groß EIN/AUS mit Brenner-Bild – über Taste 3 |
+| Warmwasser | groß EIN/AUS mit BWWP-Bild und Puffertemperatur – über Taste 2 |
 
 Beim 3-Wege-Ventil gilt: Gas-Pumpe **aus** = Haus wird aus dem **Puffer** versorgt (Puffer + Haus grün, Gas rot); Gas-Pumpe **an** = Haus aus **Gas** (Gas + Haus grün, Puffer rot).
 
@@ -111,6 +113,7 @@ Der Gaszähler liefert nur Tageswerte, deshalb zählt Home Assistant die Zeiträ
 
 ```
 display-buderus.yaml   ESPHome-Konfiguration
+HARDWARE.md            Hardware Anschlussplan
 image/                 Bilder für die Display-Seiten
 secrets.yaml.example   Vorlage für secrets.yaml (nicht ins Repo!)
 docs/                  Vorschau der Display-Seiten
