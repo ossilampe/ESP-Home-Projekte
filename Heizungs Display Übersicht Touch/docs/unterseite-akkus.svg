@@ -65,4 +65,6 @@
 <text x='392' y='213' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
 <text x='392' y='233' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
 <text x='392' y='253' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='14' y='278' width='170' height='40' rx='10' fill='#1F1F1F' />
+<text x='99' y='304' font-size='20' fill='#8C8C8C' text-anchor='middle'>&lt; Zurück</text>
 </svg>
