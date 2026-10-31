@@ -1,0 +1,68 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 320' width='480' height='320' font-family='Roboto, Arial, sans-serif'>
+<rect x='0' y='0' width='480' height='320' rx='0' fill='#000000' />
+<path d='M16 20 m-3 -3 q3 -3 6 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<path d='M16 20 m-7 -6 q7 -5 14 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<path d='M16 20 m-11 -9 q11 -7 22 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<circle cx='16' cy='20' r='2' fill='#FFFFFF'/>
+<text x='30' y='18' font-size='18' fill='#FFFFFF' text-anchor='start'>-58</text>
+<text x='240' y='19' font-size='20' fill='#00EDED' text-anchor='middle'>Akkus</text>
+<text x='476' y='18' font-size='18' fill='#FFFFFF' text-anchor='end'>17:42</text>
+<rect x='0' y='30' width='480' height='2' rx='0' fill='#00EDED' />
+<rect x='0' y='32' width='5' height='288' rx='0' fill='#00EDED' />
+<text x='130' y='56' font-size='18' fill='#8C8C8C' text-anchor='start'>SOC</text>
+<text x='172' y='56' font-size='20' fill='#FFFF00' text-anchor='start'>71 %</text>
+<text x='230' y='56' font-size='18' fill='#8C8C8C' text-anchor='start'>Lim.</text>
+<text x='270' y='56' font-size='20' fill='#FFFFFF' text-anchor='start'>25 %</text>
+<text x='406' y='56' font-size='20' fill='#FFFFFF' text-anchor='end'>-1715 W</text>
+<text x='476' y='56' font-size='20' fill='#FFFFFF' text-anchor='end'>22,7 °C</text>
+<rect x='14' y='70' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='20' y='90' font-size='20' fill='#FFFF00' text-anchor='start'>1: 71 %</text>
+<text x='20' y='111' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='20' y='131' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='20' y='151' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='107' y='70' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='113' y='90' font-size='20' fill='#FFFF00' text-anchor='start'>2: 71 %</text>
+<text x='113' y='111' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='113' y='131' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='113' y='151' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='200' y='70' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='206' y='90' font-size='20' fill='#FFFF00' text-anchor='start'>3: 71 %</text>
+<text x='206' y='111' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='206' y='131' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='206' y='151' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='293' y='70' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='299' y='90' font-size='20' fill='#FFFF00' text-anchor='start'>4: 71 %</text>
+<text x='299' y='111' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='299' y='131' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='299' y='151' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='386' y='70' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='392' y='90' font-size='20' fill='#FFFF00' text-anchor='start'>5: 71 %</text>
+<text x='392' y='111' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='392' y='131' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='392' y='151' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='14' y='172' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='20' y='192' font-size='20' fill='#FFFF00' text-anchor='start'>6: 71 %</text>
+<text x='20' y='213' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='20' y='233' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='20' y='253' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='107' y='172' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='113' y='192' font-size='20' fill='#FFFF00' text-anchor='start'>7: 71 %</text>
+<text x='113' y='213' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='113' y='233' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='113' y='253' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='200' y='172' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='206' y='192' font-size='20' fill='#FFFF00' text-anchor='start'>8: 71 %</text>
+<text x='206' y='213' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='206' y='233' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='206' y='253' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='293' y='172' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='299' y='192' font-size='20' fill='#FFFF00' text-anchor='start'>9: 71 %</text>
+<text x='299' y='213' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='299' y='233' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='299' y='253' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+<rect x='386' y='172' width='90' height='96' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='2'/>
+<text x='392' y='192' font-size='20' fill='#FFFF00' text-anchor='start'>10: 71 %</text>
+<text x='392' y='213' font-size='14' fill='#FFFFFF' text-anchor='start'>50,1V -1,7A</text>
+<text x='392' y='233' font-size='14' fill='#FFFFFF' text-anchor='start'>22,7 °C</text>
+<text x='392' y='253' font-size='14' fill='#8C8C8C' text-anchor='start'>3,340-3,345</text>
+</svg>

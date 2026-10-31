@@ -1,0 +1,34 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 320' width='480' height='320' font-family='Roboto, Arial, sans-serif'>
+<rect x='0' y='0' width='480' height='320' rx='0' fill='#000000' />
+<path d='M16 20 m-3 -3 q3 -3 6 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<path d='M16 20 m-7 -6 q7 -5 14 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<path d='M16 20 m-11 -9 q11 -7 22 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<circle cx='16' cy='20' r='2' fill='#FFFFFF'/>
+<text x='30' y='18' font-size='18' fill='#FFFFFF' text-anchor='start'>-58</text>
+<text x='240' y='19' font-size='20' fill='#00FF00' text-anchor='middle'>Warmwasser</text>
+<text x='476' y='18' font-size='18' fill='#FFFFFF' text-anchor='end'>17:42</text>
+<rect x='0' y='30' width='480' height='2' rx='0' fill='#00FF00' />
+<rect x='0' y='32' width='5' height='288' rx='0' fill='#00FF00' />
+<image x='14' y='36' width='96' height='96' href='data:image/png;base64,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'/>
+<text x='120' y='54' font-size='18' fill='#8C8C8C' text-anchor='start'>BWWP</text>
+<text x='120' y='87' font-size='26' fill='#00FF00' text-anchor='start'>EIN</text>
+<text x='120' y='124' font-size='20' fill='#00FF00' text-anchor='start'>läuft</text>
+<text x='14' y='178' font-size='20' fill='#FFFFFF' text-anchor='start'>Wasser</text>
+<text x='234' y='178' font-size='20' fill='#FFFFFF' text-anchor='end'>37,0 °C</text>
+<text x='14' y='215' font-size='20' fill='#FFFFFF' text-anchor='start'>Leistung</text>
+<text x='234' y='215' font-size='20' fill='#FFFFFF' text-anchor='end'>401 W</text>
+<text x='14' y='251' font-size='18' fill='#8C8C8C' text-anchor='start'>Zu/Abluft</text>
+<text x='162' y='251' font-size='18' fill='#FFFFFF' text-anchor='end'>4,4 °C</text>
+<text x='234' y='251' font-size='18' fill='#FFFFFF' text-anchor='end'>14,9 °C</text>
+<rect x='254' y='38' width='222' height='68' rx='10' fill='#1F1F1F' stroke='#FF0000' stroke-width='3'/>
+<text x='266' y='76' font-size='20' fill='#FFFFFF' text-anchor='start'>Gas zuheizen</text>
+<text x='464' y='76' font-size='20' fill='#FF0000' text-anchor='end'>AUS</text>
+<rect x='254' y='115' width='222' height='68' rx='10' fill='#1F1F1F' stroke='#FF0000' stroke-width='3'/>
+<text x='266' y='153' font-size='20' fill='#FFFFFF' text-anchor='start'>Heizstab</text>
+<text x='464' y='153' font-size='20' fill='#FF0000' text-anchor='end'>AUS</text>
+<rect x='254' y='192' width='222' height='68' rx='10' fill='#1F1F1F' stroke='#00FF00' stroke-width='3'/>
+<text x='266' y='230' font-size='20' fill='#FFFFFF' text-anchor='start'>Zirkulation</text>
+<text x='464' y='230' font-size='20' fill='#00FF00' text-anchor='end'>EIN</text>
+<rect x='14' y='278' width='170' height='40' rx='10' fill='#1F1F1F' />
+<text x='99' y='304' font-size='20' fill='#8C8C8C' text-anchor='middle'>&lt; Zurück</text>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 320' width='480' height='320' font-family='Roboto, Arial, sans-serif'>
+<rect x='0' y='0' width='480' height='320' rx='0' fill='#000000' />
+<path d='M16 20 m-3 -3 q3 -3 6 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<path d='M16 20 m-7 -6 q7 -5 14 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<path d='M16 20 m-11 -9 q11 -7 22 0' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<circle cx='16' cy='20' r='2' fill='#FFFFFF'/>
+<text x='30' y='18' font-size='18' fill='#FFFFFF' text-anchor='start'>-58</text>
+<text x='240' y='19' font-size='20' fill='#FF59A6' text-anchor='middle'>Puffer</text>
+<text x='476' y='18' font-size='18' fill='#FFFFFF' text-anchor='end'>17:42</text>
+<rect x='0' y='30' width='480' height='2' rx='0' fill='#FF59A6' />
+<rect x='0' y='32' width='5' height='288' rx='0' fill='#FF59A6' />
+<defs><linearGradient id='t' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#B4489E'/><stop offset='1' stop-color='#8A5CD0'/></linearGradient></defs>
+<rect x='40' y='43' width='70' height='222' rx='8' fill='url(#t)' stroke='#FFFFFF' stroke-width='3'/>
+<circle cx='75' cy='154' r='24' fill='#000000' fill-opacity='0.7'/><circle cx='75' cy='154' r='8' fill='none' stroke='#FFFFFF' stroke-width='5' stroke-dasharray='3 2.3'/><circle cx='75' cy='154' r='5' fill='none' stroke='#FFFFFF' stroke-width='2'/>
+<rect x='112' y='61' width='12' height='5' rx='0' fill='#FFFFFF' />
+<rect x='112' y='239' width='12' height='5' rx='0' fill='#FFFFFF' />
+<text x='132' y='75' font-size='40' fill='#B4489E' text-anchor='start'>43,1°</text>
+<text x='132' y='110' font-size='18' fill='#8C8C8C' text-anchor='start'>oben</text>
+<text x='132' y='215' font-size='40' fill='#8A5CD0' text-anchor='start'>38,6°</text>
+<text x='132' y='251' font-size='18' fill='#8C8C8C' text-anchor='start'>unten</text>
+<rect x='270' y='43' width='206' height='222' rx='10' fill='#1F1F1F' />
+<circle cx='290' cy='65' r='8' fill='#FF0000'/>
+<text x='306' y='69' font-size='20' fill='#FFFFFF' text-anchor='start'>Pumpe Gas</text>
+<text x='306' y='93' font-size='20' fill='#FF0000' text-anchor='start'>Gas unterdrückt</text>
+<circle cx='290' cy='129' r='8' fill='#00FF00'/>
+<text x='306' y='133' font-size='20' fill='#FFFFFF' text-anchor='start'>Pumpe Kamin</text>
+<text x='306' y='157' font-size='20' fill='#00FF00' text-anchor='start'>Heizen per Kamin</text>
+<text x='282' y='181' font-size='18' fill='#8C8C8C' text-anchor='start'>Grenzen TO / TU</text>
+<text x='282' y='201' font-size='20' fill='#FFFFFF' text-anchor='start'>41,0 / 35,0 °C</text>
+<text x='282' y='225' font-size='18' fill='#8C8C8C' text-anchor='start'>Hysterese / Nachlauf</text>
+<text x='282' y='245' font-size='20' fill='#FFFFFF' text-anchor='start'>5 K / 10 min</text>
+<rect x='14' y='278' width='110' height='40' rx='10' fill='#1F1F1F' />
+<text x='69' y='307' font-size='26' fill='#8C8C8C' text-anchor='middle'>&lt;</text>
+<rect x='175' y='278' width='130' height='40' rx='10' fill='#1F1F1F' />
+<path d='M191 299 l10 -9 l10 9 M194 297 v9 h14 v-9' fill='none' stroke='#00EDED' stroke-width='2'/>
+<text x='291' y='302' font-size='18' fill='#8C8C8C' text-anchor='end'>2 / 6</text>
+<rect x='366' y='278' width='110' height='40' rx='10' fill='#1F1F1F' />
+<text x='421' y='307' font-size='26' fill='#8C8C8C' text-anchor='middle'>&gt;</text>
+</svg>

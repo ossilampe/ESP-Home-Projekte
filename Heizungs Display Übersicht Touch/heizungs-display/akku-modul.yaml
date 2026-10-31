@@ -1,0 +1,80 @@
+# Ein Pylontech-Modul (n = 1 ... 10) fuer die Seite "Akkus"
+# eingebunden aus test-heizung.yaml ueber packages mit vars: {n: ...}
+sensor:
+  - platform: homeassistant
+    id: s_ak${n}_soc
+    entity_id: sensor.pylontech_batterie_system_2_battery${n}_state_of_charge
+    filters:
+      - throttle: 15s
+    on_value:
+      then:
+        - lambda: |-
+            hz::num(ak${n}_soc, x, "${n}: %.0f %%");
+            lv_obj_set_style_border_color(ak${n}_kachel, lv_color_hex(std::isnan(x) ? hz::GRAU : hz::GRUEN), 0);
+
+  - platform: homeassistant
+    id: s_ak${n}_v
+    entity_id: sensor.pylontech_batterie_system_2_battery${n}_voltage
+    filters:
+      - throttle: 15s
+    on_value:
+      then:
+        - lambda: |-
+            char b[32];
+            float a = id(s_ak${n}_a).state;
+            if (std::isnan(x)) snprintf(b, sizeof(b), "--");
+            else if (std::isnan(a)) snprintf(b, sizeof(b), "%.1fV", x);
+            else snprintf(b, sizeof(b), "%.1fV %.1fA", x, a);
+            lv_label_set_text(ak${n}_va, b);
+
+  - platform: homeassistant
+    id: s_ak${n}_a
+    entity_id: sensor.pylontech_batterie_system_2_battery${n}_current
+    filters:
+      - throttle: 15s
+    on_value:
+      then:
+        - lambda: |-
+            char b[32];
+            float v = id(s_ak${n}_v).state;
+            if (std::isnan(v)) snprintf(b, sizeof(b), "--");
+            else if (std::isnan(x)) snprintf(b, sizeof(b), "%.1fV", v);
+            else snprintf(b, sizeof(b), "%.1fV %.1fA", v, x);
+            lv_label_set_text(ak${n}_va, b);
+
+  - platform: homeassistant
+    id: s_ak${n}_t
+    entity_id: sensor.pylontech_batterie_system_2_battery${n}_temperatur
+    filters:
+      - throttle: 15s
+    on_value:
+      then:
+        - lambda: 'hz::num(ak${n}_t, x, "%.1f °C");'
+
+  - platform: homeassistant
+    id: s_ak${n}_zmin
+    entity_id: sensor.pylontech_batterie_system_2_battery${n}_zelle_min_spannung
+    filters:
+      - throttle: 15s
+    on_value:
+      then:
+        - lambda: |-
+            char b[32];
+            float hi = id(s_ak${n}_zmax).state;
+            if (std::isnan(x) || std::isnan(hi)) snprintf(b, sizeof(b), "--");
+            else snprintf(b, sizeof(b), "%.3f-%.3f", x, hi);
+            lv_label_set_text(ak${n}_z, b);
+
+  - platform: homeassistant
+    id: s_ak${n}_zmax
+    entity_id: sensor.pylontech_batterie_system_2_battery${n}_zelle_max_spannung
+    filters:
+      - throttle: 15s
+    on_value:
+      then:
+        - lambda: |-
+            char b[32];
+            float lo = id(s_ak${n}_zmin).state;
+            if (std::isnan(x) || std::isnan(lo)) snprintf(b, sizeof(b), "--");
+            else snprintf(b, sizeof(b), "%.3f-%.3f", lo, x);
+            lv_label_set_text(ak${n}_z, b);

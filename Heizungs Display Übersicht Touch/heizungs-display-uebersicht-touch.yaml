@@ -1,0 +1,1812 @@
+esphome:
+  name: waveshare-display-test
+  friendly_name: "Heizungs Display Übersicht Touch"
+  includes:
+    - heizungs-display/helpers.h
+  on_boot:
+    priority: -100
+    then:
+      - audio_dac.set_volume:
+          id: codec
+          volume: 85%
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  cpu_frequency: 240MHz
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: WARN   # weniger Log-Ausgaben = fluessigere Anzeige
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Waveshare-Test-Fallback"
+    password: !secret heizung_display__ap_password
+
+captive_portal:
+
+i2c:
+  - id: i2c_bus
+    sda: GPIO8
+    scl: GPIO7
+    frequency: 400kHz   # Touch, Erweiterungs-Chip (Display-CS) und Ton teilen sich diesen Bus
+    scan: true
+
+pca9554:
+  - id: p_c_a
+    address: 0x20
+    i2c_id: i2c_bus
+
+output:
+  - platform: ledc
+    pin: GPIO6
+    id: backlight_pwm
+    frequency: 2000 Hz
+
+light:
+  - platform: monochromatic
+    name: "Display Hintergrundbeleuchtung"
+    id: display_backlight
+    output: backlight_pwm
+    restore_mode: ALWAYS_ON
+    gamma_correct: 1.0
+
+spi:
+  id: display_spi
+  clk_pin: GPIO5
+  mosi_pin: GPIO1
+  miso_pin: GPIO2
+
+display:
+  - platform: mipi_spi
+    id: my_display
+    model: st7796
+    spi_id: display_spi
+    cs_pin:
+      pca9554: p_c_a
+      number: 2
+    dc_pin: GPIO3
+    reset_pin:
+      pca9554: p_c_a
+      number: 1
+    spi_mode: 1
+    data_rate: 40MHz
+    color_order: bgr
+    invert_colors: true
+    pixel_mode: 16bit
+    auto_clear_enabled: false
+    update_interval: never
+
+touchscreen:
+  - platform: ft63x6
+    id: my_touch
+    update_interval: 20ms   # kein Interrupt: Touch wird abgefragt, kurze Tipper nicht verpassen
+    i2c_id: i2c_bus
+
+    transform:
+      swap_xy: false
+      mirror_x: false
+      mirror_y: false
+
+    on_touch:
+      # Klick-Ton als Feedback
+      - speaker.play:
+          id: lautsprecher
+          data: [0, 0, 57, 49, 235, 68, 63, 48, 0, 0, 181, 208, 201, 189, 165, 209, 0, 0, 112, 45, 159, 63, 138, 44, 0, 0, 88, 212, 224, 194, 53, 213, 0, 0, 242, 41, 186, 58, 29, 41, 0, 0, 179, 215, 147, 199, 128, 216, 0, 0, 184, 38, 54, 54, 244, 37, 0, 0, 205, 218, 234, 203, 137, 219, 0, 0, 190, 35, 11, 50, 9, 35, 0, 0, 169, 221, 235, 207, 87, 222, 0, 0, 254, 32, 50, 46, 87, 32, 0, 0, 77, 224, 157, 211, 238, 224, 0, 0, 117, 30, 165, 42, 219, 29, 0, 0, 189, 226, 7, 215, 81, 227, 0, 0, 29, 28, 94, 39, 143, 27, 0, 0, 253, 228, 46, 218, 134, 229, 0, 0, 244, 25, 87, 36, 112, 25, 0, 0, 16, 231, 22, 221, 143, 231, 0, 0, 245, 23, 140, 33, 124, 23, 0, 0, 251, 232, 197, 223, 112, 233, 0, 0, 30, 22, 247, 30, 174, 21, 0, 0, 192, 234, 64, 226, 44, 235, 0, 0, 106, 20, 150, 28, 3, 20, 0, 0, 99, 236, 137, 228, 198, 236, 0, 0, 216, 18, 99, 26, 121, 18, 0, 0, 229, 237, 166, 230, 65, 238, 0, 0, 101, 17, 92, 24, 13, 17, 0, 0, 73, 239, 153, 232, 158, 239, 0, 0, 15, 16, 124, 22, 190, 15, 0, 0, 146, 240, 101, 234, 224, 240, 0, 0, 211, 14, 194, 20, 136, 14, 0, 0, 194, 241, 15, 236, 10, 242, 0, 0, 175, 13, 41, 19, 106, 13, 0, 0, 218, 242, 151, 237, 29, 243, 0, 0, 162, 12, 176, 17, 98, 12, 0, 0, 221, 243, 2, 239, 27, 244, 0, 0, 169, 11, 84, 16, 110, 11, 0, 0, 204, 244, 80, 240, 5, 245, 0, 0, 196, 10, 18, 15, 141, 10, 0, 0, 169, 245, 133, 241, 221, 245, 0, 0, 240, 9, 234, 13, 189, 9, 0, 0, 116, 246, 162, 242, 165, 246, 0, 0, 44, 9, 216, 12, 254, 8, 0, 0, 48, 247, 169, 243, 93, 247, 0, 0, 119, 8, 219, 11, 77, 8, 0, 0, 222, 247, 156, 244, 7, 248, 0, 0, 209, 7, 242, 10, 169, 7, 0, 0, 126, 248, 124, 245, 164, 248, 0, 0, 55, 7, 26, 10, 18, 7, 0, 0, 18, 249, 75, 246, 53, 249, 0, 0, 169, 6, 83, 9, 135, 6, 0, 0, 154, 249, 10, 247, 186, 249, 0, 0, 38, 6, 156, 8, 7, 6, 0, 0, 24, 250, 187, 247, 54, 250, 0, 0, 173, 5, 242, 7, 144, 5, 0, 0, 140, 250, 94, 248, 168, 250, 0, 0, 61, 5, 86, 7, 34, 5, 0, 0, 248, 250, 244, 248, 17, 251, 0, 0, 214, 4, 197, 6, 189, 4, 0, 0, 91, 251, 127, 249, 114, 251, 0, 0, 119, 4, 64, 6, 96, 4, 0, 0, 182, 251, 255, 249, 204, 251, 0, 0, 31, 4, 197, 5, 10, 4, 0, 0, 11, 252, 117, 250, 31, 252, 0, 0, 206, 3, 83, 5, 186, 3, 0, 0, 89, 252, 226, 250, 107, 252, 0, 0, 131, 3, 235, 4, 113, 3, 0, 0, 161, 252, 71, 251, 178, 252, 0, 0, 62, 3, 138, 4, 45, 3, 0, 0, 227, 252, 164, 251, 243, 252, 0, 0, 254, 2, 48, 4, 239, 2, 0, 0, 32, 253, 250, 251, 47, 253, 0, 0, 195, 2, 222, 3, 181, 2, 0, 0, 89, 253, 73, 252, 102, 253, 0, 0, 140, 2, 146, 3, 128, 2, 0, 0, 141, 253, 146, 252, 154, 253, 0, 0, 90, 2, 75, 3, 78, 2, 0, 0, 189, 253, 214, 252, 201, 253, 0, 0, 44, 2, 11, 3, 33, 2, 0, 0, 234, 253, 20, 253, 244, 253, 0, 0, 1, 2, 207, 2, 247, 1, 0, 0, 19, 254, 78, 253, 29, 254, 0, 0, 218, 1, 151, 2, 208, 1, 0, 0, 57, 254, 131, 253, 66, 254, 0, 0, 181, 1, 100, 2, 173, 1, 0, 0, 92, 254, 180, 253, 100, 254, 0, 0, 148, 1, 53, 2, 140, 1, 0, 0, 124, 254, 225, 253, 132, 254, 0, 0, 116, 1, 10, 2, 109, 1, 0, 0, 154, 254, 11, 254, 161, 254, 0, 0, 88, 1, 226, 1, 81, 1, 0, 0, 182, 254, 49, 254, 188, 254, 0, 0, 61, 1, 189, 1, 55, 1, 0, 0, 207, 254, 85, 254, 213, 254, 0, 0, 37, 1, 154, 1, 31, 1, 0, 0, 231, 254, 118, 254, 236, 254, 0, 0, 14, 1, 123, 1, 9, 1, 0, 0, 252, 254, 148, 254, 1, 255, 0, 0, 250, 0, 94, 1, 245, 0, 0, 0, 16, 255, 176, 254, 21, 255, 0, 0, 230, 0, 67, 1, 226, 0, 0, 0, 35, 255, 202, 254, 39, 255, 0, 0, 213, 0, 42, 1, 208, 0, 0, 0, 52, 255, 226, 254, 56, 255, 0, 0, 196, 0, 19, 1, 192, 0, 0, 0, 68, 255, 248, 254, 71, 255, 0, 0, 181, 0, 254, 0, 177, 0, 0, 0, 82, 255, 12, 255, 86, 255, 0, 0, 167, 0, 234, 0, 164, 0, 0, 0, 95, 255, 31, 255, 99, 255, 0, 0, 154, 0, 216, 0, 151, 0, 0, 0, 108, 255, 48, 255, 111, 255, 0, 0, 142, 0, 199, 0, 139, 0, 0, 0, 119, 255, 64, 255, 122, 255, 0, 0, 131, 0, 184, 0, 129, 0, 0, 0, 130, 255, 79, 255, 132, 255, 0, 0, 121, 0, 170, 0, 119, 0, 0, 0, 140, 255, 93, 255, 142, 255, 0, 0, 112, 0, 157, 0, 110, 0, 0, 0, 149, 255, 105, 255, 151, 255]
+      # Display schlaeft: Beleuchtung sofort wieder an
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: 100%
+
+    on_release:
+      # Erst beim Loslassen LVGL wieder starten, damit die Weck-Beruehrung
+      # nicht gleichzeitig die Seite wechselt
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+            - lambda: |-
+                lv_disp_trig_activity(NULL);
+
+# ---------- Ton (ES8311 + Lautsprecher) ----------
+audio_dac:
+  - platform: es8311
+    id: codec
+    i2c_id: i2c_bus
+    address: 0x18
+
+i2s_audio:
+  - id: i2s_bus
+    i2s_lrclk_pin: GPIO15
+    i2s_bclk_pin: GPIO13
+    i2s_mclk_pin: GPIO12
+
+speaker:
+  - platform: i2s_audio
+    id: lautsprecher
+    i2s_audio_id: i2s_bus
+    dac_type: external
+    i2s_dout_pin: GPIO16
+    audio_dac: codec
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    channel: mono
+    timeout: never
+
+# Verstaerker (PA) ueber den Erweiterungs-Chip
+switch:
+  - platform: gpio
+    id: verstaerker
+    pin:
+      pca9554: p_c_a
+      number: 7
+    restore_mode: ALWAYS_ON
+
+
+# ===================================================================
+#  Heizungs Display Uebersicht Touch - Design wie das Display Buderus
+#  schwarzer Hintergrund, Kopfzeile WLAN + Uhrzeit, jede Seite eine Farbe
+#  Menue:  1 Uebersicht  2 Puffer  3 Temperaturen  4 Gas  5 Gaskosten  6 Solar
+#  Unterseiten (nur per Antippen): Warmwasser, Einstellungen, Akkus
+# ===================================================================
+
+# Die 10 Pylontech-Module (gleicher Aufbau, nur die Nummer wechselt)
+packages:
+  akku1: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 1}}
+  akku2: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 2}}
+  akku3: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 3}}
+  akku4: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 4}}
+  akku5: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 5}}
+  akku6: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 6}}
+  akku7: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 7}}
+  akku8: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 8}}
+  akku9: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 9}}
+  akku10: !include {file: heizungs-display/akku-modul.yaml, vars: {n: 10}}
+
+# welche Schaltung gerade nachgefragt wird: 1 Gas zuheizen, 2 Heizstab, 3 Zirkulation
+globals:
+  - id: frage_aktion
+    type: int
+    initial_value: "0"
+  # Einstellungen: am Display eingestellte, noch nicht gespeicherte Grenzwerte
+  - id: to_neu
+    type: float
+    initial_value: "NAN"
+  - id: tu_neu
+    type: float
+    initial_value: "NAN"
+  - id: hy_neu
+    type: float
+    initial_value: "NAN"
+  - id: nl_neu
+    type: float
+    initial_value: "NAN"
+  - id: einst_geaendert
+    type: bool
+    initial_value: "false"
+
+# 1-Wire-Bus fuer die DS18B20-Fuehler: Daten = GPIO48 (Leisten-Pin 23), 4,7 kOhm nach 3,3 V
+one_wire:
+  - platform: gpio
+    pin: GPIO48
+    id: ow_bus
+
+time:
+  - platform: homeassistant
+    id: esptime
+
+script:
+  # Seitenzahl im Home-Knopf; n = 0 = Unterseite (Warmwasser, Einstellungen):
+  # dort sind Blaettern und Home ausgeblendet, es gibt nur "Zurueck"
+  # Seitentitel in der Kopfzeile (zwischen WLAN und Uhrzeit) in der Seitenfarbe
+  - id: set_seite
+    parameters:
+      n: int
+      titel: string
+      farbe: int
+    then:
+      - lambda: |-
+          lv_label_set_text(hdr_titel, titel.c_str());
+          lv_obj_set_style_text_color(hdr_titel, lv_color_hex(farbe), 0);
+          lv_obj_t *nav[3] = {nav_zurueck, nav_home, nav_weiter};
+          for (auto *o : nav) {
+            if (n == 0) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+          }
+          if (n > 0) {
+            char b[12];
+            snprintf(b, sizeof(b), "%d / 6", n);
+            lv_label_set_text(nav_seite, b);
+          }
+
+  # BWWP: eingeschaltet (switch.warmepumpe) und laeuft wirklich (60 - 900 W)
+  - id: bwwp_update
+    then:
+      - lambda: |-
+          int an = hz::zustand(id(ts_wp).state);
+          float p = id(wp_leistung).state;
+          bool laeuft = !std::isnan(p) && p > 60.0f && p < 900.0f;
+          hz::ein_aus(ww_bwwp, an);
+          if (an == 1 && laeuft) {
+            hz::txt(ov_bwwp, "BWWP läuft", hz::GRUEN);
+            hz::txt(ww_betrieb, "läuft", hz::GRUEN);
+          } else if (an == 1) {
+            hz::txt(ov_bwwp, "BWWP steht", hz::ROT);
+            hz::txt(ww_betrieb, "steht", hz::ROT);
+          } else if (an == 0) {
+            hz::txt(ov_bwwp, "BWWP aus", hz::GRAU);
+            hz::txt(ww_betrieb, "aus", hz::GRAU);
+          } else {
+            hz::txt(ov_bwwp, "BWWP --", hz::GRAU);
+            hz::txt(ww_betrieb, "--", hz::GRAU);
+          }
+
+  # Gas-Seiten: Verbrauch, Kosten (Verbrauch x Gaspreis) und Gesamtkosten aus HA
+  - id: gas_update
+    then:
+      - lambda: |-
+          float preis = id(g_preis).state;
+          hz::num(gv_heute, id(g_heute).state, "%.1f kWh");
+          hz::num(gv_gestern, id(g_gestern).state, "%.1f kWh");
+          hz::num(gv_vorgestern, id(g_vorgestern).state, "%.1f kWh");
+          hz::num(gv_woche, id(g_woche).state, "%.0f kWh");
+          hz::num(gv_monat, id(g_monat).state, "%.0f kWh");
+          hz::num(gv_jahr, id(g_jahr).state, "%.0f kWh");
+          hz::num(gv_zs, id(g_zs).state, "%.1f m³");
+          hz::num(gv_preis, preis, "%.3f €/kWh");
+          hz::num(gk_heute, id(g_heute).state * preis, "%.2f €");
+          hz::num(gk_gestern, id(g_gestern).state * preis, "%.2f €");
+          hz::num(gk_vorgestern, id(g_vorgestern).state * preis, "%.2f €");
+          hz::num(gk_woche, id(k_woche).state, "%.2f €");
+          hz::num(gk_monat, id(k_monat).state, "%.2f €");
+          hz::num(gk_jahr, id(k_jahr).state, "%.2f €");
+          hz::num(gk_grund, id(g_grund).state, "%.2f €/Monat");
+
+  # Puffer: Tank-Farbverlauf nach echter Temperatur oben / unten
+  - id: puffer_update
+    then:
+      - lambda: |-
+          float o = id(zirk_temp_oben).state;
+          float u = id(zirk_temp_unten).state;
+          char b[32];
+          if (std::isnan(o) && std::isnan(u)) snprintf(b, sizeof(b), "--");
+          else if (std::isnan(u)) snprintf(b, sizeof(b), "%.0f° / --", o);
+          else if (std::isnan(o)) snprintf(b, sizeof(b), "-- / %.0f°", u);
+          else snprintf(b, sizeof(b), "%.0f° / %.0f°", o, u);
+          lv_label_set_text(ov_puffer, b);
+          if (std::isnan(o)) o = u;
+          if (std::isnan(u)) u = o;
+          if (std::isnan(o)) {
+            lv_obj_set_style_bg_color(pu_tank, lv_color_hex(0x1F1F1F), 0);
+            lv_obj_set_style_bg_grad_color(pu_tank, lv_color_hex(0x1F1F1F), 0);
+          } else {
+            lv_obj_set_style_bg_color(pu_tank, hz::temp_farbe(o), 0);
+            lv_obj_set_style_bg_grad_color(pu_tank, hz::temp_farbe(u), 0);
+          }
+          hz::num(pu_oben, id(zirk_temp_oben).state, "%.1f°");
+          hz::num(pu_unten, id(zirk_temp_unten).state, "%.1f°");
+          lv_obj_set_style_text_color(pu_oben, hz::temp_farbe(id(zirk_temp_oben).state), 0);
+          lv_obj_set_style_text_color(pu_unten, hz::temp_farbe(id(zirk_temp_unten).state), 0);
+
+  # Einstellungen anzeigen: orange = geaendert, aber noch nicht gespeichert
+  - id: einst_zeigen
+    then:
+      - lambda: |-
+          bool to_anders = std::isnan(id(grenze_to).state) || std::fabs(id(to_neu) - id(grenze_to).state) > 0.05f;
+          bool tu_anders = std::isnan(id(grenze_tu).state) || std::fabs(id(tu_neu) - id(grenze_tu).state) > 0.05f;
+          bool hy_anders = std::isnan(id(grenze_hy).state) || std::fabs(id(hy_neu) - id(grenze_hy).state) > 0.05f;
+          bool nl_anders = std::isnan(id(grenze_nl).state) || std::fabs(id(nl_neu) - id(grenze_nl).state) > 0.05f;
+          hz::num(e_to, id(to_neu), "%.1f °C");
+          hz::num(e_tu, id(tu_neu), "%.1f °C");
+          hz::num(e_hy, id(hy_neu), "%.0f K");
+          hz::num(e_nl, id(nl_neu), "%.0f min");
+          lv_obj_set_style_text_color(e_to, lv_color_hex(to_anders ? hz::ORANGE : hz::WEISS), 0);
+          lv_obj_set_style_text_color(e_tu, lv_color_hex(tu_anders ? hz::ORANGE : hz::WEISS), 0);
+          lv_obj_set_style_text_color(e_hy, lv_color_hex(hy_anders ? hz::ORANGE : hz::WEISS), 0);
+          lv_obj_set_style_text_color(e_nl, lv_color_hex(nl_anders ? hz::ORANGE : hz::WEISS), 0);
+          lv_label_set_text(e_hinweis, (to_anders || tu_anders || hy_anders || nl_anders) ? "noch nicht gespeichert" : "");
+
+  # Grenzwerte TO / TU auf Puffer- und Einstellungsseite
+  - id: grenzen_update
+    then:
+      - lambda: |-
+          // Einstellungsseite nur nachfuehren, solange dort nichts ungespeichert geaendert ist
+          if (!id(einst_geaendert)) {
+            id(to_neu) = id(grenze_to).state;
+            id(tu_neu) = id(grenze_tu).state;
+            id(hy_neu) = id(grenze_hy).state;
+            id(nl_neu) = id(grenze_nl).state;
+            id(einst_zeigen).execute();
+          }
+          char b[48];
+          float o = id(grenze_to).state, u = id(grenze_tu).state;
+          if (std::isnan(o) || std::isnan(u)) snprintf(b, sizeof(b), "--");
+          else snprintf(b, sizeof(b), "%.1f / %.1f °C", o, u);
+          lv_label_set_text(pu_grenzen, b);
+          float hy = id(grenze_hy).state, nl = id(grenze_nl).state;
+          if (std::isnan(hy) || std::isnan(nl)) snprintf(b, sizeof(b), "--");
+          else snprintf(b, sizeof(b), "%.0f K / %.0f min", hy, nl);
+          lv_label_set_text(pu_hysterese, b);
+          if (std::isnan(o) || std::isnan(u)) lv_label_set_text(ov_grenzen, "");
+          else {
+            snprintf(b, sizeof(b), "Schalten TO %.1f / TU %.1f °C", o, u);
+            lv_label_set_text(ov_grenzen, b);
+          }
+
+  # Solar: Summe der drei Phasen
+  - id: solar_update
+    then:
+      - lambda: |-
+          float s = 0; bool ok = false;
+          for (float v : {id(sens_wr1_p).state, id(sens_wr2_p).state, id(sens_wr3_p).state}) {
+            if (!std::isnan(v)) { s += v; ok = true; }
+          }
+          hz::num(so_summe, ok ? s : NAN, "%.0f W");
+
+# Uhrzeit in der Kopfzeile
+interval:
+  # Sicherheitsnetz: Beleuchtung an, aber LVGL haengt noch in der Pause -> wieder starten
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            and:
+              - lvgl.is_paused:
+              - light.is_on: display_backlight
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+            - lambda: 'lv_disp_trig_activity(NULL);'
+  - interval: 10s
+    then:
+      - lambda: |-
+          auto t = id(esptime).now();
+          if (t.is_valid()) {
+            char b[8];
+            snprintf(b, sizeof(b), "%02d:%02d", t.hour, t.minute);
+            lv_label_set_text(hdr_zeit, b);
+          }
+
+sensor:
+  # DS18B20 am 1-Wire-Bus (GPIO48): direkt angeschlossen, Anzeige auch ohne WLAN und HA
+  - platform: dallas_temp
+    one_wire_id: ow_bus
+    address: 0x04000000d6775028
+    id: ds_1
+    name: "Rücklauf Haus"
+    update_interval: 10s
+    on_value:
+      then:
+        - lambda: 'hz::num(t_rgas, x, "%.1f °C");'
+  - platform: dallas_temp
+    one_wire_id: ow_bus
+    address: 0xb5000000d20a9828
+    id: ds_2
+    name: "Puffer unten"
+    update_interval: 10s
+    on_value:
+      then:
+        - lambda: 'hz::num(t_psu, x, "%.1f °C");'
+  - platform: dallas_temp
+    one_wire_id: ow_bus
+    address: 0xfb000000d4b44a28
+    id: ds_3
+    name: "Puffer oben"
+    update_interval: 10s
+    on_value:
+      then:
+        - lambda: 'hz::num(t_pso, x, "%.1f °C");'
+  - platform: dallas_temp
+    one_wire_id: ow_bus
+    address: 0xad000000d6ae7628
+    id: ds_4
+    name: "Vorlauf Haus"
+    update_interval: 10s
+    on_value:
+      then:
+        - lambda: 'hz::num(t_vgas, x, "%.1f °C");'
+
+  - platform: wifi_signal
+    id: wifi_db
+    update_interval: 30s
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            int pct = std::max(0, std::min(100, (int) (2 * (x + 100))));
+            char b[8];
+            snprintf(b, sizeof(b), "%d %%", pct);
+            lv_label_set_text(hdr_wlan, b);
+
+  # ---------- Ofen / Puffer / Heizung ----------
+  - platform: homeassistant
+    id: temp_ofen
+    entity_id: sensor.aussen_display_buderus_ofen_fuehler
+    on_value:
+      then:
+        - lambda: |-
+            hz::num(ov_ofen, x, "%.1f °C");
+            lv_obj_set_style_text_color(ov_ofen, hz::temp_farbe(x), 0);
+            hz::num(t_ofen, x, "%.1f °C");
+
+  - platform: homeassistant
+    id: zirk_temp_oben
+    entity_id: sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_temperatur
+    on_value:
+      then:
+        - script.execute: puffer_update
+
+  - platform: homeassistant
+    id: zirk_temp_unten
+    entity_id: sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_temperatur_2
+    on_value:
+      then:
+        - script.execute: puffer_update
+
+  - platform: homeassistant
+    id: grenze_to
+    entity_id: input_number.zirkulation_grenze_t1
+    on_value:
+      then:
+        - script.execute: grenzen_update
+
+  - platform: homeassistant
+    id: grenze_tu
+    entity_id: input_number.zirkulation_grenze_t2
+    on_value:
+      then:
+        - script.execute: grenzen_update
+
+  - platform: homeassistant
+    id: grenze_hy
+    entity_id: input_number.zirkulation_hysterese
+    on_value:
+      then:
+        - script.execute: grenzen_update
+
+  - platform: homeassistant
+    id: grenze_nl
+    entity_id: input_number.zirkulation_nachlauf
+    on_value:
+      then:
+        - script.execute: grenzen_update
+
+  # ---------- Warmwasser / BWWP ----------
+  - platform: homeassistant
+    id: wp_temperatur
+    entity_id: sensor.shellyplus_temperatur_bwwp_puffer_temperature
+    on_value:
+      then:
+        - lambda: |-
+            hz::num(ov_ww, x, "%.1f °C");
+            hz::num(t_wasser, x, "%.1f °C");
+            hz::num(ww_wasser, x, "%.1f °C");
+
+  - platform: homeassistant
+    id: wp_leistung
+    entity_id: sensor.warmepumpe_leistung
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(ww_leistung, x, "%.0f W");'
+        - script.execute: bwwp_update
+
+  - platform: homeassistant
+    id: wp_zuluft
+    entity_id: sensor.shellyplus_temperatur_bwwp_lufteinlass_temperature
+    on_value:
+      then:
+        - lambda: |-
+            hz::num(t_zuluft, x, "%.1f °C");
+            hz::num(ww_zuluft, x, "%.1f °C");
+
+  - platform: homeassistant
+    id: wp_abluft
+    entity_id: sensor.shellyplus_temperatur_bwwp_luftauslass_temperature
+    on_value:
+      then:
+        - lambda: |-
+            hz::num(t_abluft, x, "%.1f °C");
+            hz::num(ww_abluft, x, "%.1f °C");
+
+  # ---------- Gas: Verbrauch und Kosten ----------
+  - platform: homeassistant
+    id: g_heute
+    entity_id: sensor.verbrauch_energie_heute
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_gestern
+    entity_id: sensor.verbrauch_energie_gestern
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_vorgestern
+    entity_id: sensor.verbrauch_energie_vorgestern
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_woche
+    entity_id: sensor.gas_energie_woche
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_monat
+    entity_id: sensor.gas_energie_monat
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_jahr
+    entity_id: sensor.gas_energie_seit_stichtag
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_zs
+    entity_id: sensor.zahlerstand
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_preis
+    entity_id: input_number.gasreis_eingabe
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: g_grund
+    entity_id: input_number.gas_grundkosten_monat
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: k_woche
+    entity_id: sensor.gas_kosten_woche
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: k_monat
+    entity_id: sensor.gas_kosten_monat
+    on_value: {then: [script.execute: gas_update]}
+  - platform: homeassistant
+    id: k_jahr
+    entity_id: sensor.gas_kosten_seit_stichtag
+    on_value: {then: [script.execute: gas_update]}
+
+  # ---------- Solar ----------
+  - platform: homeassistant
+    id: pv_leistung
+    entity_id: sensor.victron_system_dc_pv_power
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(so_pv, x, "%.0f W");'
+  - platform: homeassistant
+    id: pv_tag
+    entity_id: sensor.gx_device_solar_erzeugung_taglich
+    on_value:
+      then:
+        - lambda: 'hz::num(so_heute, x, "%.1f kWh");'
+  - platform: homeassistant
+    id: sens_wr1_p
+    entity_id: sensor.multiplus_ii_1_wechselrichter_ausgangsleistung_l1
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(so_l1, x, "%.0f W");'
+        - script.execute: solar_update
+  - platform: homeassistant
+    id: sens_wr2_p
+    entity_id: sensor.multiplus_ii_1_wechselrichter_ausgangsleistung_l2
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(so_l2, x, "%.0f W");'
+        - script.execute: solar_update
+  - platform: homeassistant
+    id: sens_wr3_p
+    entity_id: sensor.multiplus_ii_1_wechselrichter_ausgangsleistung_l3
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(so_l3, x, "%.0f W");'
+        - script.execute: solar_update
+  - platform: homeassistant
+    id: sens_wr1_g
+    entity_id: sensor.multiplus_ii_1_wechselrichter_ausgangsspannung_l1
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(so_netz, x, "%.0f V");'
+
+  # ---------- Akkus gesamt (Module kommen aus akku-modul.yaml) ----------
+  - platform: homeassistant
+    id: s_ak_soc
+    entity_id: sensor.pylontech_battery_id_512_batterieladung
+    on_value:
+      then:
+        - lambda: 'hz::num(ak_soc, x, "%.0f %%");'
+  - platform: homeassistant
+    id: s_ak_leistung
+    entity_id: sensor.pylontech_battery_id_512_batterieleistung
+    filters:
+      - throttle: 5s
+    on_value:
+      then:
+        - lambda: 'hz::num(ak_leistung, x, "%.0f W");'
+  - platform: homeassistant
+    id: s_ak_limit
+    entity_id: sensor.victron_settings_ess_batterylife_soclimit
+    on_value:
+      then:
+        - lambda: 'hz::num(ak_limit, x, "%.0f %%");'
+  - platform: homeassistant
+    id: s_ak_temp
+    entity_id: sensor.pylontech_battery_id_512_batterietemperatur
+    on_value:
+      then:
+        - lambda: 'hz::num(ak_temp, x, "%.1f °C");'
+
+# Zwei Taster an der Steckleiste: Taster zwischen GPIO und GND (interner Pull-up)
+#   Taster 1 = GPIO17 (Leisten-Pin 16), Taster 2 = GPIO18 (Leisten-Pin 18), GND z. B. Pin 30
+binary_sensor:
+  - platform: gpio
+    name: "Taster 1"
+    id: taster_1
+    pin:
+      number: GPIO17
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+  - platform: gpio
+    name: "Taster 2"
+    id: taster_2
+    pin:
+      number: GPIO18
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+
+text_sensor:
+  # Schalter aus HA als Text: "on", "off", "unavailable" ...
+  - platform: homeassistant
+    id: ts_wp
+    entity_id: switch.warmepumpe
+    on_value:
+      then:
+        - script.execute: bwwp_update
+
+  - platform: homeassistant
+    id: ts_stab
+    entity_id: switch.bwwp_steuerung_esp_lichtsensor_wp_status_led
+    on_value:
+      then:
+        - lambda: |-
+            int z = hz::zustand(x);
+            hz::knopf(kn_stab, kn_stab_z, z);
+            lv_obj_set_style_text_color(ov_stab, lv_color_hex(z == 1 ? hz::GRUEN : (z == 0 ? hz::ROT : hz::GRAU)), 0);
+
+  - platform: homeassistant
+    id: ts_zp_bw
+    entity_id: switch.shellyplus_zirkulationspumpe
+    on_value:
+      then:
+        - lambda: 'hz::knopf(kn_zirk, kn_zirk_z, hz::zustand(x));'
+
+  # Warmwasser per Gas zuheizen = Relais am Display Buderus
+  - platform: homeassistant
+    id: ts_ww_gas
+    entity_id: switch.display_buderus_ww_zuheizen
+    on_value:
+      then:
+        - lambda: |-
+            int z = hz::zustand(x);
+            hz::knopf(kn_gas, kn_gas_z, z);
+            if (z == 1) hz::txt(ov_wwgas, "WW zuheizen: EIN", hz::GRUEN);
+            else if (z == 0) hz::txt(ov_wwgas, "WW zuheizen: AUS", hz::ROT);
+            else hz::txt(ov_wwgas, "WW zuheizen: --", hz::GRAU);
+        - if:
+            condition:
+              lambda: 'return x == "on";'
+            then:
+              - lvgl.image.update: {id: ov_ww_img, src: bwwp_on}
+              - lvgl.image.update: {id: ww_img, src: bwwp_on_g}
+            else:
+              - lvgl.image.update: {id: ov_ww_img, src: bwwp_off}
+              - lvgl.image.update: {id: ww_img, src: bwwp_off_g}
+
+  # Relais "Gas unterdruecken" am Display Buderus: on = Brenner gesperrt (Bild Brenner aus)
+  - platform: homeassistant
+    id: ts_gas_sperre
+    entity_id: switch.display_buderus_gas_unterdruecken
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "on";'
+            then:
+              - lvgl.image.update: {id: ov_gas_img, src: brenner_off}
+            else:
+              - lvgl.image.update: {id: ov_gas_img, src: brenner_on}
+
+  # Pumpe Kamin (Puffer -> Haus): an = Heizen per Kamin
+  - platform: homeassistant
+    id: ts_zp_puff
+    entity_id: switch.keller_shelly_mit_addon_heizung_fur_zirkulation
+    on_value:
+      then:
+        - lambda: |-
+            int z = hz::zustand(x);
+            hz::ein_aus(pu_ventil, z, "Heizen per Kamin", "aus");
+            lv_obj_set_style_bg_color(pu_ventil_dot, lv_color_hex(z == 1 ? hz::GRUEN : (z == 0 ? hz::ROT : hz::GRAU)), 0);
+
+  # Pumpe Gas: an = Heizen per Gas, aus = Gas unterdrueckt (Seite 2 und Kachel Gasheizung auf Seite 1)
+  - platform: homeassistant
+    id: ts_zp_gas
+    entity_id: binary_sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_pumpe_gas_an_aus
+    on_value:
+      then:
+        - lambda: |-
+            int z = hz::zustand(x);
+            hz::ein_aus(pu_pumpe, z, "Heizen per Gas", "Gas unterdrückt");
+            if (z == 1) hz::txt(ov_gas, "Heizen per Gas", hz::GRUEN);
+            else if (z == 0) hz::txt(ov_gas, "Gas Heizung aus", hz::ROT);
+            else hz::txt(ov_gas, "--", hz::GRAU);
+            lv_obj_set_style_bg_color(pu_pumpe_dot, lv_color_hex(z == 1 ? hz::GRUEN : (z == 0 ? hz::ROT : hz::GRAU)), 0);
+
+  - platform: homeassistant
+    id: ts_gas_stichtag
+    entity_id: input_datetime.gas_stichtag
+    on_value:
+      then:
+        - lambda: |-
+            if (x.size() >= 10) {
+              std::string d = x.substr(8, 2) + "." + x.substr(5, 2) + "." + x.substr(0, 4);
+              lv_label_set_text(gk_stichtag, d.c_str());
+            }
+
+  - platform: homeassistant
+    id: ts_wr_zustand
+    entity_id: sensor.multiplus_ii_1_wechselrichterzustand
+    on_value:
+      then:
+        - lambda: |-
+            bool ok = !(x.empty() || x == "unknown" || x == "unavailable");
+            hz::txt(so_wr, ok ? x.c_str() : "--", ok ? hz::GRUEN : hz::GRAU);
+
+font:
+  - file: "gfonts://Roboto"
+    id: f14
+    size: 14
+    glyphsets: [GF_Latin_Kernel]
+    glyphs: ["€", "³", "Ä", "Ö", "Ü", "ä", "ö", "ü", "ß"]
+  - file: "gfonts://Roboto"
+    id: f18
+    size: 18
+    glyphsets: [GF_Latin_Kernel]
+    glyphs: ["€", "³", "Ä", "Ö", "Ü", "ä", "ö", "ü", "ß"]
+  - file: "gfonts://Roboto"
+    id: f20
+    size: 20
+    glyphsets: [GF_Latin_Kernel]
+    glyphs: ["€", "³", "Ä", "Ö", "Ü", "ä", "ö", "ü", "ß"]
+  - file: "gfonts://Roboto"
+    id: f26
+    size: 26
+    glyphsets: [GF_Latin_Kernel]
+    glyphs: ["€", "³", "Ä", "Ö", "Ü", "ä", "ö", "ü", "ß"]
+  - file: "gfonts://Roboto@500"
+    id: f40
+    size: 40
+    glyphs: " 0123456789.,-+/°CEINAUSWKmin%"
+
+image:
+  - file: "image/wlan1.png"
+    id: wlan
+    type: RGB565
+    transparency: alpha_channel
+    resize: 20x20
+  - file: "image/brenner_on.png"
+    id: brenner_on
+    type: RGB565
+    transparency: alpha_channel
+    resize: 56x56
+  - file: "image/brenner_off.png"
+    id: brenner_off
+    type: RGB565
+    transparency: alpha_channel
+    resize: 56x56
+  - file: "image/BWWP_Gas_On.png"
+    id: bwwp_on
+    type: RGB565
+    transparency: alpha_channel
+    resize: 56x56
+  - file: "image/BWWP_Gas_Off.png"
+    id: bwwp_off
+    type: RGB565
+    transparency: alpha_channel
+    resize: 56x56
+  - file: "image/BWWP_Gas_On.png"
+    id: bwwp_on_g
+    type: RGB565
+    transparency: alpha_channel
+    resize: 96x96
+  - file: "image/BWWP_Gas_Off.png"
+    id: bwwp_off_g
+    type: RGB565
+    transparency: alpha_channel
+    resize: 96x96
+
+lvgl:
+  displays:
+    - my_display
+  touchscreens:
+    - touchscreen_id: my_touch
+  rotation: 90
+  buffer_size: 25%   # Zeichenpuffer im schnellen internen RAM
+
+  # Nach 30 s ohne Beruehrung: zurueck auf die Uebersicht, Beleuchtung aus, LVGL anhalten
+  on_idle:
+    timeout: 30s
+    then:
+      - lvgl.widget.hide: dlg
+      - lvgl.page.show: seite_1
+      - light.turn_off: display_backlight
+      - lvgl.pause:
+
+  theme:
+    dark_mode: true
+    label:
+      text_color: 0xFFFFFF
+  bottom_layer:
+    bg_color: 0x000000
+    bg_opa: COVER
+  text_color: 0xFFFFFF
+  text_font: f20
+
+  style_definitions:
+    - id: st_kachel
+      bg_color: 0x1F1F1F
+      bg_opa: COVER
+      radius: 10
+      border_width: 0
+      pad_all: 0
+    - id: st_klein
+      text_font: f18
+      text_color: 0x8C8C8C
+    - id: st_zeile
+      text_font: f20
+      text_color: 0xFFFFFF
+    - id: st_knopf
+      bg_color: 0x1F1F1F
+      bg_opa: COVER
+      radius: 10
+      border_width: 3
+      border_color: 0x8C8C8C
+      shadow_width: 0
+      pad_all: 0
+    - id: st_nav
+      bg_color: 0x1F1F1F
+      bg_opa: COVER
+      radius: 10
+      border_width: 0
+      shadow_width: 0
+
+  # Kopfzeile (WLAN + Uhrzeit) und Blaettern unten liegen ueber allen Seiten
+  top_layer:
+    widgets:
+      - image:
+          x: 6
+          y: 5
+          src: wlan
+      - label:
+          id: hdr_wlan
+          x: 30
+          y: 4
+          text: "--"
+          text_font: f18
+      - label:
+          id: hdr_titel
+          x: 100
+          y: 3
+          width: 280
+          text_align: CENTER
+          text: "Übersicht"
+          text_font: f20
+          text_color: 0x00EDED
+      - label:
+          id: hdr_zeit
+          x: 386
+          y: 4
+          width: 90
+          text_align: RIGHT
+          text: "--:--"
+          text_font: f18
+      - obj:
+          x: 0
+          y: 30
+          width: 480
+          height: 2
+          bg_color: 0x00EDED
+          bg_opa: COVER
+          radius: 0
+          border_width: 0
+          clickable: false
+      - button:
+          id: nav_zurueck
+          x: 14
+          y: 278
+          width: 110
+          height: 40
+          styles: st_nav
+          on_click:
+            - lvgl.page.previous:
+                animation: NONE
+          widgets:
+            - label:
+                align: CENTER
+                text: "<"
+                text_font: f26
+                text_color: 0x8C8C8C
+      # Home: zurueck zur Uebersicht, zeigt gleichzeitig die Seitenzahl
+      - button:
+          id: nav_home
+          x: 175
+          y: 278
+          width: 130
+          height: 40
+          styles: st_nav
+          on_click:
+            - lvgl.page.show:
+                id: seite_1
+                animation: NONE
+          widgets:
+            - label:
+                align: LEFT_MID
+                x: 16
+                text: ""
+                text_font: montserrat_20
+                text_color: 0x00EDED
+            - label:
+                id: nav_seite
+                align: RIGHT_MID
+                x: -14
+                text: "1 / 6"
+                text_font: f18
+                text_color: 0x8C8C8C
+      - button:
+          id: nav_weiter
+          x: 366
+          y: 278
+          width: 110
+          height: 40
+          styles: st_nav
+          on_click:
+            - lvgl.page.next:
+                animation: NONE
+          widgets:
+            - label:
+                align: CENTER
+                text: ">"
+                text_font: f26
+                text_color: 0x8C8C8C
+      # Nachfrage vor dem Schalten und Speichern (liegt ueber allen Seiten)
+      - obj:
+          id: dlg
+          x: 0
+          y: 0
+          width: 480
+          height: 320
+          bg_color: 0x000000
+          bg_opa: 80%
+          radius: 0
+          border_width: 0
+          pad_all: 0
+          scrollable: false
+          hidden: true
+          widgets:
+            - obj:
+                align: CENTER
+                width: 380
+                height: 200
+                bg_color: 0x1F1F1F
+                bg_opa: COVER
+                radius: 12
+                border_width: 3
+                border_color: 0x00FF00
+                pad_all: 0
+                scrollable: false
+                widgets:
+                  - label: {id: dlg_text, align: TOP_MID, y: 20, width: 340, text_align: CENTER, text: "", text_font: f26}
+                  - button:
+                      x: 24
+                      y: 120
+                      width: 150
+                      height: 56
+                      styles: st_knopf
+                      border_color: 0x00FF00
+                      on_click:
+                        - if:
+                            condition:
+                              lambda: 'return id(frage_aktion) == 1;'
+                            then:
+                              - homeassistant.action:
+                                  action: switch.toggle
+                                  data:
+                                    entity_id: switch.display_buderus_ww_zuheizen
+                        - if:
+                            condition:
+                              lambda: 'return id(frage_aktion) == 2;'
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: button.bwwp_steuerung_turn_on
+                        - if:
+                            condition:
+                              lambda: 'return id(frage_aktion) == 3;'
+                            then:
+                              - homeassistant.action:
+                                  action: switch.toggle
+                                  data:
+                                    entity_id: switch.shellyplus_zirkulationspumpe
+                        - if:
+                            condition:
+                              lambda: 'return id(frage_aktion) == 4;'
+                            then:
+                              - homeassistant.action:
+                                  action: input_number.set_value
+                                  data:
+                                    entity_id: input_number.zirkulation_grenze_t1
+                                  data_template:
+                                    value: "{{ wert }}"
+                                  variables:
+                                    wert: 'return id(to_neu);'
+                              - homeassistant.action:
+                                  action: input_number.set_value
+                                  data:
+                                    entity_id: input_number.zirkulation_grenze_t2
+                                  data_template:
+                                    value: "{{ wert }}"
+                                  variables:
+                                    wert: 'return id(tu_neu);'
+                              - homeassistant.action:
+                                  action: input_number.set_value
+                                  data:
+                                    entity_id: input_number.zirkulation_hysterese
+                                  data_template:
+                                    value: "{{ wert }}"
+                                  variables:
+                                    wert: 'return id(hy_neu);'
+                              - homeassistant.action:
+                                  action: input_number.set_value
+                                  data:
+                                    entity_id: input_number.zirkulation_nachlauf
+                                  data_template:
+                                    value: "{{ wert }}"
+                                  variables:
+                                    wert: 'return id(nl_neu);'
+                              - lambda: 'id(einst_geaendert) = false;'
+                              - script.execute: einst_zeigen
+                        - lambda: 'id(frage_aktion) = 0;'
+                        - lvgl.widget.hide: dlg
+                      widgets:
+                        - label: {align: CENTER, text: "Ja", text_font: f26, text_color: 0x00FF00}
+                  - button:
+                      x: 200
+                      y: 120
+                      width: 150
+                      height: 56
+                      styles: st_knopf
+                      border_color: 0xFF0000
+                      on_click:
+                        - lambda: 'id(frage_aktion) = 0;'
+                        - lvgl.widget.hide: dlg
+                      widgets:
+                        - label: {align: CENTER, text: "Nein", text_font: f26, text_color: 0xFF0000}
+
+  pages:
+    # =================== 1 Uebersicht (cyan) ===================
+    - id: seite_1
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 1, titel: "Übersicht", farbe: 0x00EDED}
+      widgets:
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0x00EDED, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - obj:
+            x: 14
+            y: 38
+            width: 227
+            height: 112
+            styles: st_kachel
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {x: 12, y: 8, text: "Ofen", styles: st_klein}
+              - label: {id: ov_ofen, x: 12, y: 38, text: "--", text_font: f40}
+        - obj:
+            x: 249
+            y: 38
+            width: 227
+            height: 112
+            styles: st_kachel
+            scrollable: false
+            # Antippen -> Seite Puffer
+            on_click:
+              - lvgl.page.show: {id: seite_2}
+            widgets:
+              - label: {x: 12, y: 8, text: "Puffer oben / unten", styles: st_klein}
+              - label: {id: ov_puffer, x: 12, y: 38, text: "--", text_font: f40}
+              - label: {id: ov_grenzen, x: 12, y: 88, text: "", text_font: f14, text_color: 0xFF8C00}
+        - obj:
+            x: 14
+            y: 160
+            width: 227
+            height: 112
+            styles: st_kachel
+            scrollable: false
+            # Antippen -> Seite Gas
+            on_click:
+              - lvgl.page.show: {id: seite_6}
+            widgets:
+              - label: {x: 12, y: 8, text: "Gasheizung", styles: st_klein}
+              - label: {id: ov_gas, x: 12, y: 40, text: "--", text_font: f20, text_color: 0x8C8C8C}
+              - label: {id: ov_wwgas, x: 12, y: 72, text: "WW zuheizen: --", text_font: f14, text_color: 0x8C8C8C}
+              - image: {id: ov_gas_img, x: 160, y: 8, src: brenner_on}
+        - obj:
+            x: 249
+            y: 160
+            width: 227
+            height: 112
+            styles: st_kachel
+            scrollable: false
+            # Antippen -> Unterseite Warmwasser
+            on_click:
+              - lvgl.page.show: {id: seite_4}
+            widgets:
+              - label: {x: 12, y: 8, text: "Warmwasser", styles: st_klein}
+              - label: {id: ov_ww, x: 12, y: 30, text: "--", text_font: f40}
+              - label: {id: ov_bwwp, x: 12, y: 72, text: "BWWP --", text_font: f14, text_color: 0x8C8C8C}
+              - label: {id: ov_stab, x: 118, y: 72, text: "Heizstab", text_font: f14, text_color: 0x8C8C8C}
+              - image: {id: ov_ww_img, x: 156, y: 8, src: bwwp_off}
+
+    # =================== 2 Puffer (pink) ===================
+    - id: seite_2
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 2, titel: "Puffer", farbe: 0xFF59A6}
+      widgets:
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0xFF59A6, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        # Tank: Farbverlauf von oben nach unten nach den echten Temperaturen
+        - obj:
+            id: pu_tank
+            x: 40
+            y: 43
+            width: 70
+            height: 222
+            radius: 8
+            bg_color: 0x1F1F1F
+            bg_grad_color: 0x1F1F1F
+            bg_grad_dir: VER
+            bg_opa: COVER
+            border_width: 3
+            border_color: 0xFFFFFF
+            scrollable: false
+            clickable: false
+            pad_all: 0
+            widgets:
+              # Hinweis im Tank: antippen = Grenzwerte aendern
+              - obj:
+                  align: CENTER
+                  width: 48
+                  height: 48
+                  radius: 24
+                  bg_color: 0x000000
+                  bg_opa: 70%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label: {align: CENTER, text: "\uF013", text_font: montserrat_20, text_color: 0xFFFFFF}
+        - obj: {x: 112, y: 61, width: 12, height: 5, bg_color: 0xFFFFFF, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - obj: {x: 112, y: 239, width: 12, height: 5, bg_color: 0xFFFFFF, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {id: pu_oben, x: 132, y: 43, text: "--", text_font: f40}
+        - label: {x: 132, y: 96, text: "oben", styles: st_klein}
+        - label: {id: pu_unten, x: 132, y: 183, text: "--", text_font: f40}
+        - label: {x: 132, y: 237, text: "unten", styles: st_klein}
+        # Tank und Temperaturen antippen -> Unterseite Einstellungen (Grenzwerte TO / TU)
+        - obj:
+            x: 30
+            y: 36
+            width: 230
+            height: 236
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            scrollable: false
+            on_click:
+              - lvgl.page.show: {id: seite_5}
+        # rechts: Pumpe, Ventil, Grenzwerte
+        - obj:
+            x: 270
+            y: 43
+            width: 206
+            height: 222
+            styles: st_kachel
+            scrollable: false
+            clickable: false
+            widgets:
+              - obj: {id: pu_pumpe_dot, x: 12, y: 14, width: 16, height: 16, radius: 8, bg_color: 0x8C8C8C, bg_opa: COVER, border_width: 0, clickable: false}
+              - label: {x: 36, y: 10, text: "Pumpe Gas", styles: st_zeile}
+              - label: {id: pu_pumpe, x: 36, y: 34, text: "--", text_font: f20, text_color: 0x8C8C8C}
+              - obj: {id: pu_ventil_dot, x: 12, y: 78, width: 16, height: 16, radius: 8, bg_color: 0x8C8C8C, bg_opa: COVER, border_width: 0, clickable: false}
+              - label: {x: 36, y: 74, text: "Pumpe Kamin", styles: st_zeile}
+              - label: {id: pu_ventil, x: 36, y: 98, text: "--", text_font: f20, text_color: 0x8C8C8C}
+              - label: {x: 12, y: 124, text: "Grenzen TO / TU", styles: st_klein}
+              - label: {id: pu_grenzen, x: 12, y: 142, text: "--", text_font: f20}
+              - label: {x: 12, y: 168, text: "Hysterese / Nachlauf", styles: st_klein}
+              - label: {id: pu_hysterese, x: 12, y: 186, text: "--", text_font: f20}
+
+    # =================== 3 Temperaturen (rot) ===================
+    - id: seite_3
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 3, titel: "Temperaturen", farbe: 0xFF0000}
+      widgets:
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0xFF0000, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - obj: {x: 242, y: 45, width: 1, height: 218, bg_color: 0x8C8C8C, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 14, y: 45, text: "Ofen", styles: st_zeile}
+        - label: {id: t_ofen, x: 110, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 89, text: "V-Haus", styles: st_zeile}
+        - label: {id: t_vgas, x: 110, y: 89, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 134, text: "R-Haus", styles: st_zeile}
+        - label: {id: t_rgas, x: 110, y: 134, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 178, text: "Wasser", styles: st_zeile}
+        - label: {id: t_wasser, x: 110, y: 178, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 45, text: "PS.-O", styles: st_zeile}
+        - label: {id: t_pso, x: 352, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 89, text: "PS.-U", styles: st_zeile}
+        - label: {id: t_psu, x: 352, y: 89, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 134, text: "Zuluft", styles: st_zeile}
+        - label: {id: t_zuluft, x: 352, y: 134, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 178, text: "Abluft", styles: st_zeile}
+        - label: {id: t_abluft, x: 352, y: 178, width: 124, text_align: RIGHT, text: "--"}
+
+    # =================== 4 Gas (gelb) ===================
+    - id: seite_6
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 4, titel: "Gas", farbe: 0xFFFF00}
+      widgets:
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0xFFFF00, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - obj: {x: 242, y: 45, width: 1, height: 119, bg_color: 0x8C8C8C, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 14, y: 45, text: "Heute", styles: st_zeile}
+        - label: {id: gv_heute, x: 110, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 87, text: "Gestern", styles: st_zeile}
+        - label: {id: gv_gestern, x: 110, y: 87, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 129, text: "Vorgestern", styles: st_zeile}
+        - label: {id: gv_vorgestern, x: 110, y: 129, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 45, text: "Woche", styles: st_zeile}
+        - label: {id: gv_woche, x: 352, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 87, text: "Monat", styles: st_zeile}
+        - label: {id: gv_monat, x: 352, y: 87, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 129, text: "Jahr", styles: st_zeile}
+        - label: {id: gv_jahr, x: 352, y: 129, width: 124, text_align: RIGHT, text: "--"}
+        - obj: {x: 14, y: 176, width: 462, height: 1, bg_color: 0x8C8C8C, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 14, y: 190, text: "Zählerstand", styles: st_zeile}
+        - label: {id: gv_zs, x: 260, y: 190, width: 216, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 232, text: "Gaspreis", styles: st_zeile}
+        - label: {id: gv_preis, x: 260, y: 232, width: 216, text_align: RIGHT, text: "--"}
+
+    # =================== 5 Gaskosten (orange) ===================
+    - id: seite_7
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 5, titel: "Gaskosten", farbe: 0xFF8C00}
+      widgets:
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0xFF8C00, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - obj: {x: 242, y: 45, width: 1, height: 119, bg_color: 0x8C8C8C, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 14, y: 45, text: "Heute", styles: st_zeile}
+        - label: {id: gk_heute, x: 110, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 87, text: "Gestern", styles: st_zeile}
+        - label: {id: gk_gestern, x: 110, y: 87, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 129, text: "Vorgestern", styles: st_zeile}
+        - label: {id: gk_vorgestern, x: 110, y: 129, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 45, text: "Woche", styles: st_zeile}
+        - label: {id: gk_woche, x: 352, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 87, text: "Monat", styles: st_zeile}
+        - label: {id: gk_monat, x: 352, y: 87, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 129, text: "Jahr", styles: st_zeile}
+        - label: {id: gk_jahr, x: 352, y: 129, width: 124, text_align: RIGHT, text: "--"}
+        - obj: {x: 14, y: 176, width: 462, height: 1, bg_color: 0x8C8C8C, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 14, y: 190, text: "Jahr ab", styles: st_zeile}
+        - label: {id: gk_stichtag, x: 260, y: 190, width: 216, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 232, text: "inkl. Grundkosten", styles: st_zeile}
+        - label: {id: gk_grund, x: 260, y: 232, width: 216, text_align: RIGHT, text: "--"}
+
+    # =================== 6 Solar (blau) ===================
+    - id: seite_8
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 6, titel: "Solar", farbe: 0x2673FF}
+      widgets:
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0x2673FF, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - obj:
+            x: 14
+            y: 38
+            width: 227
+            height: 234
+            styles: st_kachel
+            scrollable: false
+            # Antippen -> Unterseite Akkus
+            on_click:
+              - lvgl.page.show: {id: seite_9}
+            widgets:
+              - label: {x: 12, y: 8, text: "PV jetzt", styles: st_klein}
+              - label: {x: 120, y: 8, width: 92, text_align: RIGHT, text: "Akkus >", text_font: f14, text_color: 0x8C8C8C}
+              - label: {id: so_pv, x: 12, y: 32, text: "--", text_font: f40, text_color: 0xFFFF00}
+              - label: {x: 12, y: 90, text: "Heute", styles: st_klein}
+              - label: {id: so_heute, x: 12, y: 112, text: "--", text_font: f26}
+              - label: {x: 12, y: 150, text: "Wechselrichter", styles: st_klein}
+              - label: {id: so_wr, x: 12, y: 170, text: "--", text_font: f20, text_color: 0x8C8C8C}
+        - label: {x: 254, y: 45, text: "L1", styles: st_zeile}
+        - label: {id: so_l1, x: 352, y: 45, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 87, text: "L2", styles: st_zeile}
+        - label: {id: so_l2, x: 352, y: 87, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 129, text: "L3", styles: st_zeile}
+        - label: {id: so_l3, x: 352, y: 129, width: 124, text_align: RIGHT, text: "--"}
+        - obj: {x: 254, y: 171, width: 222, height: 1, bg_color: 0x8C8C8C, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 254, y: 183, text: "Summe", styles: st_zeile}
+        - label: {id: so_summe, x: 352, y: 183, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 254, y: 225, text: "Netz L1", styles: st_zeile}
+        - label: {id: so_netz, x: 352, y: 225, width: 124, text_align: RIGHT, text: "--"}
+
+    # =================== Unterseite Warmwasser (gruen) - nur ueber die Kachel auf Seite 1 ===================
+    - id: seite_4
+      skip: true
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 0, titel: "Warmwasser", farbe: 0x00FF00}
+      widgets:
+        # Unterseite: nur Zurueck
+        - button:
+            x: 14
+            y: 278
+            width: 170
+            height: 40
+            styles: st_nav
+            on_click:
+              - lvgl.page.show: {id: seite_1}
+            widgets:
+              - label: {align: CENTER, text: "< Zurück", text_font: f20, text_color: 0x8C8C8C}
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0x00FF00, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - image: {id: ww_img, x: 14, y: 36, src: bwwp_off_g}
+        - label: {x: 120, y: 40, text: "BWWP", styles: st_klein}
+        - label: {id: ww_bwwp, x: 120, y: 66, text: "--", text_font: f26, text_color: 0x8C8C8C}
+        - label: {id: ww_betrieb, x: 120, y: 108, text: "--", text_font: f20, text_color: 0x8C8C8C}
+        - label: {x: 14, y: 162, text: "Wasser", styles: st_zeile}
+        - label: {id: ww_wasser, x: 110, y: 162, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 199, text: "Leistung", styles: st_zeile}
+        - label: {id: ww_leistung, x: 110, y: 199, width: 124, text_align: RIGHT, text: "--"}
+        - label: {x: 14, y: 237, text: "Zu/Abluft", styles: st_klein}
+        - label: {id: ww_zuluft, x: 96, y: 237, width: 66, text_align: RIGHT, text: "--", text_font: f18}
+        - label: {id: ww_abluft, x: 168, y: 237, width: 66, text_align: RIGHT, text: "--", text_font: f18}
+        # Schalten: Warmwasser per Gas / Heizstab zuheizen, Zirkulationspumpe
+        - button:
+            id: kn_gas
+            x: 254
+            y: 38
+            width: 222
+            height: 68
+            styles: st_knopf
+            on_click:
+              # erst nachfragen, geschaltet wird erst mit "Ja"
+              - lambda: |-
+                  id(frage_aktion) = 1;
+                  bool an = id(ts_ww_gas).state == "on";
+                  lv_label_set_text(dlg_text, an ? "Gas zuheizen\nausschalten?" : "Gas zuheizen\neinschalten?");
+              - lvgl.widget.show: dlg
+            widgets:
+              - label: {align: LEFT_MID, x: 12, text: "Gas zuheizen", text_font: f20}
+              - label: {id: kn_gas_z, align: RIGHT_MID, x: -12, text: "--", text_font: f20, text_color: 0x8C8C8C}
+        - button:
+            id: kn_stab
+            x: 254
+            y: 115
+            width: 222
+            height: 68
+            styles: st_knopf
+            on_click:
+              # erst nachfragen, geschaltet wird erst mit "Ja"
+              - lambda: |-
+                  id(frage_aktion) = 2;
+                  bool an = id(ts_stab).state == "on";
+                  lv_label_set_text(dlg_text, an ? "Heizstab\nausschalten?" : "Heizstab\neinschalten?");
+              - lvgl.widget.show: dlg
+            widgets:
+              - label: {align: LEFT_MID, x: 12, text: "Heizstab", text_font: f20}
+              - label: {id: kn_stab_z, align: RIGHT_MID, x: -12, text: "--", text_font: f20, text_color: 0x8C8C8C}
+        - button:
+            id: kn_zirk
+            x: 254
+            y: 192
+            width: 222
+            height: 68
+            styles: st_knopf
+            on_click:
+              # erst nachfragen, geschaltet wird erst mit "Ja"
+              - lambda: |-
+                  id(frage_aktion) = 3;
+                  bool an = id(ts_zp_bw).state == "on";
+                  lv_label_set_text(dlg_text, an ? "Zirkulation\nausschalten?" : "Zirkulation\neinschalten?");
+              - lvgl.widget.show: dlg
+            widgets:
+              - label: {align: LEFT_MID, x: 12, text: "Zirkulation", text_font: f20}
+              - label: {id: kn_zirk_z, align: RIGHT_MID, x: -12, text: "--", text_font: f20, text_color: 0x8C8C8C}
+
+    # =================== Unterseite Einstellungen (lila) - nur ueber den Tank auf Seite 2 ===================
+    # -/+ aendern die Werte erst nur am Display (orange = noch nicht gespeichert),
+    # "Speichern" fragt nach und schreibt dann beide Grenzwerte nach HA
+    - id: seite_5
+      skip: true
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 0, titel: "Einstellungen", farbe: 0xA673FF}
+        - lambda: |-
+            id(einst_geaendert) = false;
+            id(to_neu) = id(grenze_to).state;
+            id(tu_neu) = id(grenze_tu).state;
+            id(hy_neu) = id(grenze_hy).state;
+            id(nl_neu) = id(grenze_nl).state;
+        - script.execute: einst_zeigen
+      widgets:
+        # Unterseite: nur Zurueck (nicht gespeicherte Aenderungen verfallen)
+        - button:
+            x: 14
+            y: 278
+            width: 170
+            height: 40
+            styles: st_nav
+            on_click:
+              - lvgl.page.show: {id: seite_2}
+            widgets:
+              - label: {align: CENTER, text: "< Zurück", text_font: f20, text_color: 0x8C8C8C}
+        - button:
+            id: kn_speichern
+            x: 306
+            y: 278
+            width: 170
+            height: 40
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: |-
+                  id(frage_aktion) = 4;
+                  char b[96];
+                  snprintf(b, sizeof(b), "Speichern?\nTO %.1f  TU %.1f °C\n%.0f K / %.0f min", id(to_neu), id(tu_neu), id(hy_neu), id(nl_neu));
+                  lv_label_set_text(dlg_text, b);
+              - lvgl.widget.show: dlg
+            widgets:
+              - label: {align: CENTER, text: "Speichern", text_font: f20, text_color: 0xA673FF}
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0xA673FF, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 14, y: 48, text: "TO oben", styles: st_zeile}
+        - button:
+            x: 150
+            y: 36
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(to_neu) = std::max(10.0f, id(to_neu) - 0.5f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "-", text_font: f40}
+        - label: {id: e_to, x: 222, y: 37, width: 182, text_align: CENTER, text: "--", text_font: f40}
+        - button:
+            x: 410
+            y: 36
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(to_neu) = std::min(90.0f, id(to_neu) + 0.5f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "+", text_font: f40}
+        - label: {x: 14, y: 104, text: "TU unten", styles: st_zeile}
+        - button:
+            x: 150
+            y: 92
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(tu_neu) = std::max(10.0f, id(tu_neu) - 0.5f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "-", text_font: f40}
+        - label: {id: e_tu, x: 222, y: 93, width: 182, text_align: CENTER, text: "--", text_font: f40}
+        - button:
+            x: 410
+            y: 92
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(tu_neu) = std::min(90.0f, id(tu_neu) + 0.5f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "+", text_font: f40}
+        - label: {x: 14, y: 160, text: "Hysterese", styles: st_zeile}
+        - button:
+            x: 150
+            y: 148
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(hy_neu) = std::max(1.0f, id(hy_neu) - 1.0f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "-", text_font: f40}
+        - label: {id: e_hy, x: 222, y: 149, width: 182, text_align: CENTER, text: "--", text_font: f40}
+        - button:
+            x: 410
+            y: 148
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(hy_neu) = std::min(20.0f, id(hy_neu) + 1.0f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "+", text_font: f40}
+        - label: {x: 14, y: 216, text: "Nachlauf", styles: st_zeile}
+        - button:
+            x: 150
+            y: 204
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(nl_neu) = std::max(0.0f, id(nl_neu) - 1.0f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "-", text_font: f40}
+        - label: {id: e_nl, x: 222, y: 205, width: 182, text_align: CENTER, text: "--", text_font: f40}
+        - button:
+            x: 410
+            y: 204
+            width: 66
+            height: 50
+            styles: st_knopf
+            border_color: 0xA673FF
+            on_click:
+              - lambda: 'id(nl_neu) = std::min(60.0f, id(nl_neu) + 1.0f); id(einst_geaendert) = true;'
+              - script.execute: einst_zeigen
+            widgets:
+              - label: {align: CENTER, text: "+", text_font: f40}
+        - label: {id: e_hinweis, x: 14, y: 256, width: 462, text_align: CENTER, text: "", text_font: f18, text_color: 0xFF8C00}
+
+    # =================== Unterseite Akkus (cyan) - nur ueber die PV-Kachel auf der Solar-Seite ===================
+    - id: seite_9
+      skip: true
+      bg_color: 0x000000
+      bg_opa: COVER
+      on_load:
+        - script.execute: {id: set_seite, n: 0, titel: "Akkus", farbe: 0x00EDED}
+      widgets:
+        # Unterseite: nur Zurueck
+        - button:
+            x: 14
+            y: 278
+            width: 170
+            height: 40
+            styles: st_nav
+            on_click:
+              - lvgl.page.show: {id: seite_8}
+            widgets:
+              - label: {align: CENTER, text: "< Zurück", text_font: f20, text_color: 0x8C8C8C}
+        - obj: {x: 0, y: 32, width: 5, height: 288, bg_color: 0x00EDED, bg_opa: COVER, radius: 0, border_width: 0, clickable: false}
+        - label: {x: 130, y: 42, text: "SOC", styles: st_klein}
+        - label: {id: ak_soc, x: 172, y: 40, text: "--", text_font: f20, text_color: 0xFFFF00}
+        - label: {x: 230, y: 42, text: "Lim.", styles: st_klein}
+        - label: {id: ak_limit, x: 270, y: 40, text: "--", text_font: f20}
+        - label: {id: ak_leistung, x: 326, y: 40, width: 80, text_align: RIGHT, text: "--", text_font: f20}
+        - label: {id: ak_temp, x: 406, y: 40, width: 70, text_align: RIGHT, text: "--", text_font: f20}
+        # Module 1-5
+        - obj:
+            id: ak1_kachel
+            x: 14
+            y: 70
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak1_soc, x: 6, y: 4, text: "1: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak1_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak1_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak1_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak2_kachel
+            x: 107
+            y: 70
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak2_soc, x: 6, y: 4, text: "2: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak2_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak2_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak2_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak3_kachel
+            x: 200
+            y: 70
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak3_soc, x: 6, y: 4, text: "3: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak3_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak3_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak3_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak4_kachel
+            x: 293
+            y: 70
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak4_soc, x: 6, y: 4, text: "4: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak4_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak4_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak4_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak5_kachel
+            x: 386
+            y: 70
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak5_soc, x: 6, y: 4, text: "5: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak5_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak5_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak5_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        # Module 6-10
+        - obj:
+            id: ak6_kachel
+            x: 14
+            y: 172
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak6_soc, x: 6, y: 4, text: "6: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak6_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak6_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak6_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak7_kachel
+            x: 107
+            y: 172
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak7_soc, x: 6, y: 4, text: "7: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak7_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak7_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak7_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak8_kachel
+            x: 200
+            y: 172
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak8_soc, x: 6, y: 4, text: "8: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak8_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak8_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak8_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak9_kachel
+            x: 293
+            y: 172
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak9_soc, x: 6, y: 4, text: "9: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak9_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak9_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak9_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
+        - obj:
+            id: ak10_kachel
+            x: 386
+            y: 172
+            width: 90
+            height: 96
+            styles: st_kachel
+            border_width: 2
+            border_color: 0x8C8C8C
+            scrollable: false
+            clickable: false
+            widgets:
+              - label: {id: ak10_soc, x: 6, y: 4, text: "10: --", text_font: f20, text_color: 0xFFFF00}
+              - label: {id: ak10_va, x: 6, y: 30, text: "--", text_font: f14}
+              - label: {id: ak10_t, x: 6, y: 50, text: "--", text_font: f14}
+              - label: {id: ak10_z, x: 6, y: 70, text: "--", text_font: f14, text_color: 0x8C8C8C}
