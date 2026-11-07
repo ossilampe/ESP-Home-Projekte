@@ -1,206 +1,461 @@
-# Heizungs Display Übersicht Touch – ESPHome / LVGL
+# Heizungs Display Übersicht Touch
 
-Touch-Display für den Heizungsraum: zeigt Ofen, Pufferspeicher, Warmwasser, Gas, Gaskosten, Solar und Akkus auf einen Blick. Puffer und Haus misst es mit **vier eigenen DS18B20-Fühlern**, diese Werte erscheinen also auch ohne WLAN und Home Assistant. Schalten und Einstellen geht direkt am Display, immer mit Rückfrage.
+Stand: 07.11.2026 · Firmware 2026.11.07c · Gerät `waveshare-display-test` · Einbauort Heizungsraum (ersetzt den LC2014)
 
-![Übersicht](docs/seite-1-uebersicht.svg)
+Touch-Display für den Heizungsraum. Es zeigt Ofen, Pufferspeicher, Warmwasser, Gas, Gaskosten, Solar und Akkus und schaltet Warmwasser-Zuheizen, Heizstab und Zirkulation.
 
-> Alle Bilder sind Vorschauen, die aus den Koordinaten der YAML mit Beispielwerten nachgezeichnet sind – keine Fotos vom Gerät.
+**Es regelt außerdem die Pumpe Kamin** (Pufferpumpe P2 mit 3-Wege-Ventil V1) direkt über ein SSR. Das übernahm früher ein Script auf einem Shelly Plus 1, der ausgebaut ist. Vier Shelly Decoupler melden, ob an den Pumpen und am Ventil wirklich Spannung anliegt.
 
-## Inhalt
+Die fünf DS18B20-Fühler, die Regelung und die Schaltwerte arbeiten auch ohne WLAN und Home Assistant. Alle anderen Werte kommen aus Home Assistant und zeigen `--`, wenn dort keiner ankommt.
 
-- [Menüstruktur](#menüstruktur)
-- [Die Seiten](#die-seiten)
-- [Bedienung](#bedienung)
-- [Hardware und Schaltbild](#hardware-und-schaltbild)
-- [Pumpe Kamin: Hysterese und Nachlauf](#pumpe-kamin-hysterese-und-nachlauf)
-- [Installation](#installation)
-- [Home-Assistant-Entitäten](#home-assistant-entitäten)
-- [Dateien](#dateien)
+> Alle Display-Bilder sind Vorschauen, die aus den Koordinaten der Konfiguration nachgezeichnet sind. Es sind keine Fotos vom Gerät, und die Werte sind Beispiele.
 
-## Menüstruktur
+![Übersicht](docs/seite-1-uebersicht.png)
 
-Sechs Hauptseiten werden mit `<` und `>` durchgeblättert. Die Mitte führt zurück zur Übersicht und zeigt die Seitenzahl (`2 / 6`). Drei Unterseiten erreicht man nur durch Antippen, sie haben nur `< Zurück`.
+## 1. Auf einen Blick
 
-```mermaid
-flowchart TD
-    S1["1 Übersicht"] --- S2["2 Puffer"] --- S3["3 Temperaturen"] --- S4["4 Gas"] --- S5["5 Gaskosten"] --- S6["6 Solar"]
-    S1 -. "Kachel Puffer" .-> S2
-    S1 -. "Kachel Gasheizung" .-> S4
-    S1 -. "Kachel Warmwasser" .-> WW["Warmwasser<br/>Gas zuheizen, Heizstab, Zirkulation"]
-    S2 -. "Tank antippen" .-> E["Einstellungen<br/>TO, TU, Hysterese, Nachlauf"]
-    S6 -. "Kachel PV" .-> A["Akkus<br/>10 Pylontech-Module"]
-```
-
-## Die Seiten
-
-| | |
+| Punkt | Wert |
 |---|---|
-| **1 Übersicht** – Ofen, Puffer, Gasheizung, Warmwasser | **2 Puffer** – Tank mit Temperaturfarbe, Pumpen, Grenzwerte |
-| ![Übersicht](docs/seite-1-uebersicht.svg) | ![Puffer](docs/seite-2-puffer.svg) |
-| **3 Temperaturen** – alle Fühler auf einen Blick | **4 Gas** – Verbrauch, Zählerstand, Gaspreis |
-| ![Temperaturen](docs/seite-3-temperaturen.svg) | ![Gas](docs/seite-4-gas.svg) |
-| **5 Gaskosten** – Tag, Woche, Monat, Jahr ab Stichtag | **6 Solar** – PV, Tagesertrag, Phasen L1–L3 |
-| ![Gaskosten](docs/seite-5-gaskosten.svg) | ![Solar](docs/seite-6-solar.svg) |
-| **Warmwasser** (Unterseite) – Wärmepumpe und Schalter | **Einstellungen** (Unterseite) – Schaltwerte der Pumpe Kamin |
-| ![Warmwasser](docs/unterseite-warmwasser.svg) | ![Einstellungen](docs/unterseite-einstellungen.svg) |
-| **Akkus** (Unterseite) – Gesamtwerte und 10 Module | |
-| ![Akkus](docs/unterseite-akkus.svg) | |
+| Hardware | Waveshare ESP32-S3 Touch-LCD 3,5″, 480 × 320 |
+| Konfiguration | `heizungs-display-uebersicht-touch.yaml` (im eigenen ESPHome-Ordner z. B. als `test-heizung.yaml`) |
+| Hilfsdateien | `heizungs-display/helpers.h`, `heizungs-display/akku-modul.yaml`, `image/` |
+| Anzeigename in Home Assistant | Heizungs Display Übersicht Touch |
+| Fühler am Display | 5 × DS18B20: Puffer oben, mitte, unten, Vorlauf Haus, Rücklauf Haus |
+| Ausgang | SSR für die Pumpe Kamin (GPIO38) |
+| Eingänge | 4 × Shelly Decoupler 230V (GPIO39–42), 2 Taster (GPIO17/18, noch ohne Funktion) |
+| Schaltwerte | zwei Profile **Tag** und **Abend**, Umschaltung nach Uhrzeit oder **Ganztags** |
+| Beleuchtung | geht nach 1 Minute ohne Berührung aus |
+| Firmware-Stand | auf der Admin-Seite 3 (Zahnrad auf der Übersicht) |
 
-**Farben:** grün = an/läuft, rot = aus, grau = kein Wert, orange = geändert, aber noch nicht gespeichert.
+## 2. Menüstruktur
 
-## Bedienung
+![Menüstruktur](docs/menue.png)
 
-- **Schalten:** Gas zuheizen, Heizstab und Zirkulation fragen erst nach, geschaltet wird nur mit **Ja**.
-- **Einstellen:** `-` und `+` ändern die Werte zunächst nur am Display. **Speichern** fragt nach und schreibt dann alle vier Werte nach Home Assistant. Mit `< Zurück` verfallen nicht gespeicherte Änderungen.
-- **Ruhezustand:** Nach 30 s ohne Berührung geht das Display zurück zur Übersicht und die Beleuchtung aus. Die erste Berührung weckt es nur, sie löst nichts aus.
-- **Ton:** Jede Berührung gibt einen kurzen Klick über den Lautsprecher.
-- **Taster 1 und 2:** Sie erscheinen als `binary_sensor` in Home Assistant und haben am Gerät noch keine eigene Funktion.
+Die sechs Hauptseiten werden mit `<` und `>` durchgeblättert. Ein **kurzer** Tipp auf die Taste in der Mitte führt zur Übersicht, **lang gedrückt** öffnet sie die Testseite „Rückmeldungen“. Die Unterseiten haben eigene Knöpfe unten.
 
-## Hardware und Schaltbild
-
-![Schaltbild](docs/schaltbild.svg)
-
-| Teil | Anschluss |
-|---|---|
-| **Waveshare ESP32-S3 Touch-LCD 3,5″** | 480 × 320, Display ST7796 (SPI), Touch FT6336 (I²C), 16 MB Flash, Octal-PSRAM, Codec ES8311, IO-Expander PCA9554 |
-| 4 × DS18B20 mit 3 m Kabel | parallel: Daten an **GPIO48** (Leisten-Pin 23), 3,3 V an Pin 31/32, GND an Pin 3/29 |
-| Widerstand 4,7 kΩ | zwischen Daten und 3,3 V (einmal für den ganzen Bus) |
-| Taster 1 | **GPIO17** (Pin 16) nach GND, interner Pull-up, 30 ms Entprellung |
-| Taster 2 | **GPIO18** (Pin 18) nach GND, interner Pull-up, 30 ms Entprellung |
-
-**Fest auf dem Board:** I²C SDA GPIO8 / SCL GPIO7 (400 kHz), SPI CLK GPIO5 / MOSI GPIO1 / MISO GPIO2, DC GPIO3, Beleuchtung GPIO6, I²S LRCLK GPIO15 / BCLK GPIO13 / MCLK GPIO12 / DOUT GPIO16.
-
-### Fühler zuordnen
-
-Jeder DS18B20 hat eine eigene Adresse. Beim ersten Start mit `logger: level: DEBUG` stehen alle Adressen im Log. Zum Zuordnen einen Fühler in die Hand nehmen und schauen, welcher Wert steigt. Die Adressen in der YAML sind meine eigenen und müssen ersetzt werden.
-
-| Fühler | Adresse in der YAML | Anzeige |
+| Von | Antippen | Führt zu |
 |---|---|---|
-| Rücklauf Haus | `0x04000000d6775028` | R-Haus |
-| Puffer unten | `0xb5000000d20a9828` | PS.-U |
-| Puffer oben | `0xfb000000d4b44a28` | PS.-O |
-| Vorlauf Haus | `0xad000000d6ae7628` | V-Haus |
+| Übersicht | Kachel Puffer | Seite 2 Puffer |
+| Übersicht | Kachel Gasheizung | Seite 4 Gas |
+| Übersicht | Kachel Warmwasser | Unterseite Warmwasser |
+| Übersicht | **Zahnrad** oben rechts in der Kachel Ofen | Admin-Ansicht (4 Seiten) |
+| Puffer | Tank oder Temperaturen | Unterseite Einstellungen |
+| Einstellungen | Feld **Aktives Profil** | Unterseite Profile Tag / Abend |
+| Solar | Kachel PV | Unterseite Akkus |
+| jede Hauptseite | Home-Taste lange drücken | Testseite Rückmeldungen |
 
-## Pumpe Kamin: Hysterese und Nachlauf
+Keine Seite lässt sich verschieben (scrollen). Das verhindert, dass eine kleine Fingerbewegung als Wischen statt als Tipp zählt.
 
-Die Pumpe schaltet ein **Script auf dem Shelly Plus 1** mit Add-On ([`shelly/zirkulation.js`](shelly/zirkulation.js)). Es regelt auch weiter, wenn Home Assistant oder das Display ausfallen.
+## 3. Die Seiten
 
-| Zustand | Bedingung |
+### Seite 1: Übersicht
+
+![Übersicht](docs/seite-1-uebersicht.png)
+
+Ofen, Puffer oben und unten mit den Einschaltwerten (oben / mitte / unten), Gasheizung und Warmwasser. Bei der Gasheizung heißt „Heizen per Gas“, dass die Pumpe Gas läuft, „Gas Heizung aus“, dass sie steht. Beides kommt von der Rückmeldung des Decouplers an der Pumpe Gas. Das **Zahnrad** öffnet die Admin-Ansicht.
+
+### Seite 2: Puffer
+
+![Puffer](docs/seite-2-puffer.png)
+
+| Anzeige | Bedeutung |
 |---|---|
-| **Ein** | oben ≥ TO **und** unten ≥ TU |
-| **Aus** | oben < TO − Hysterese **oder** unten < TU − Hysterese, und das die ganze Nachlaufzeit lang |
-| **Sofort aus** | Eingang 100 am Add-On ist an (hat immer Vorrang) |
+| Tank | Farbverlauf nach den echten Temperaturen oben, mitte und unten: bis 30 °C blau, ab 70 °C rot |
+| oben / mitte / unten | die drei DS18B20 im Puffer, die Striche am Tank zeigen auf den Wert |
+| Pumpe Gas | „Heizen per Gas“ oder „Gas unterdrückt“, aus der Rückmeldung Decoupler 2 |
+| Knopf **Pumpe Kamin** | Rahmen grün = an, rot = aus. Text „Heizen per Kamin“ oder „aus“, im Handbetrieb „Hand: EIN / Hand: AUS“. Antippen schaltet von Hand, mit Nachfrage (siehe 4.3) |
+| Grenzen TO / TM / TU | Einschaltwerte des aktiven Profils |
+| K  Nachlauf  Profil | Hysterese, Nachlaufzeit und aktives Profil (Tag oder Abend) |
 
-Beispiel mit TO 41 °C, TU 35 °C, Hysterese 5 K: Sie schaltet ein ab 41 / 35 °C und erst unter 36 / 30 °C wieder aus. Steigt die Temperatur vor Ablauf der Nachlaufzeit wieder darüber, beginnt die Zeit von vorn.
+Antippen von Tank oder Temperaturen öffnet die Einstellungen.
 
-```mermaid
-flowchart LR
-    D["Display: Einstellungen"] -->|"input_number.set_value"| H["Home Assistant<br/>input_number.zirkulation_*"]
-    H -->|"Automation + KVS.Set"| S["Shelly Plus 1<br/>grenze_t1, grenze_t2,<br/>hysterese, nachlauf"]
-    S --> P["Pumpe Kamin"]
-```
+### Seite 3: Temperaturen
 
-Dafür braucht Home Assistant diese Helfer, einen `rest_command` und eine Automation:
+![Temperaturen](docs/seite-3-temperaturen.png)
 
-<details>
-<summary>YAML für Home Assistant</summary>
+| Anzeige | Quelle |
+|---|---|
+| Ofen | Fühler am Display Buderus |
+| V-Haus, R-Haus | DS18B20 am Display |
+| PS.-O, PS.-M, PS.-U | DS18B20 am Display (Puffer oben, mitte, unten) |
+| Wasser, Zuluft, Abluft | Shelly an der BWWP |
 
-```yaml
-input_number:
-  zirkulation_grenze_t1: {name: Zirkulation Grenze T1, min: 10, max: 90, step: 1, unit_of_measurement: "°C", mode: box}
-  zirkulation_grenze_t2: {name: Zirkulation Grenze T2, min: 10, max: 90, step: 1, unit_of_measurement: "°C", mode: box}
-  zirkulation_hysterese: {name: Zirkulation Hysterese, min: 1, max: 20, step: 1, unit_of_measurement: "K", mode: box}
-  zirkulation_nachlauf: {name: Zirkulation Nachlauf, min: 0, max: 60, step: 1, unit_of_measurement: "min", mode: box}
+### Seite 4: Gas
 
-rest_command:
-  shelly_grenze_setzen:
-    url: "http://IP-DES-SHELLY/rpc/KVS.Set"
-    method: post
-    content_type: "application/json"
-    payload: '{"key": "{{ key }}", "value": {{ value | float }} }'
+![Gas](docs/seite-4-gas.png)
 
-automation:
-  - alias: Zirkulation Grenzwerte zum Shelly
-    mode: queued
-    triggers:
-      - trigger: state
-        entity_id:
-          - input_number.zirkulation_grenze_t1
-          - input_number.zirkulation_grenze_t2
-          - input_number.zirkulation_hysterese
-          - input_number.zirkulation_nachlauf
-      - trigger: homeassistant
-        event: start
-    actions:
-      - {action: rest_command.shelly_grenze_setzen, data: {key: grenze_t1, value: "{{ states('input_number.zirkulation_grenze_t1') }}"}}
-      - {action: rest_command.shelly_grenze_setzen, data: {key: grenze_t2, value: "{{ states('input_number.zirkulation_grenze_t2') }}"}}
-      - {action: rest_command.shelly_grenze_setzen, data: {key: hysterese, value: "{{ states('input_number.zirkulation_hysterese') }}"}}
-      - {action: rest_command.shelly_grenze_setzen, data: {key: nachlauf, value: "{{ states('input_number.zirkulation_nachlauf') }}"}}
-```
+Verbrauch heute, gestern und vorgestern, dazu Woche, Monat und Jahr ab Stichtag. Darunter Zählerstand und Gaspreis.
 
-</details>
+### Seite 5: Gaskosten
 
-## Installation
+![Gaskosten](docs/seite-5-gaskosten.png)
 
-1. `heizungs-display-uebersicht-touch.yaml` sowie die Ordner `heizungs-display/` und `image/` in den ESPHome-Ordner kopieren.
-2. Die Zeilen aus `secrets.yaml.example` in die eigene `secrets.yaml` übernehmen.
-3. In der YAML die Fühler-Adressen und die Entitäten an das eigene Home Assistant anpassen.
-4. Im ESPHome-Dashboard **Install** wählen – beim ersten Mal per USB, danach per OTA.
-5. Das Gerät in Home Assistant hinzufügen und unter den Geräteoptionen **„Darf Home-Assistant-Aktionen ausführen“** aktivieren, sonst funktionieren Schalter und Speichern nicht.
-6. Für die Pumpe Kamin `shelly/zirkulation.js` als Script auf den Shelly laden, starten und auf „beim Start ausführen“ stellen.
+Tageskosten rechnet das Display aus kWh × Gaspreis. Woche, Monat und Jahr kommen aus Home Assistant und enthalten die Grundkosten.
 
-> In der YAML haben API und OTA kein Passwort. Im eigenen Netz reicht das, sonst bitte Verschlüsselung und OTA-Passwort ergänzen.
+### Seite 6: Solar
 
-## Home-Assistant-Entitäten
+![Solar](docs/seite-6-solar.png)
 
-<details>
-<summary>Liste aufklappen</summary>
+PV-Leistung, Tagesertrag und Wechselrichter-Zustand, rechts die Phasen L1 bis L3 mit Summe und Netzspannung L1.
 
-**Vom Gerät**
-- `sensor.heizungs_display_ubersicht_touch_puffer_oben`, `…_puffer_unten`, `…_vorlauf_haus`, `…_rucklauf_haus`
-- `binary_sensor.heizungs_display_ubersicht_touch_taster_1`, `…_taster_2`
-- `light.waveshare_display_test_display_hintergrundbeleuchtung`
+### Unterseite Warmwasser
 
-**Puffer und Ofen**
-- `sensor.aussen_display_buderus_ofen_fuehler` – Ofen (vom [Display Buderus](../Display%20Buderus))
-- `sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_temperatur`, `…_temperatur_2` – Puffer oben/unten am Shelly
-- `binary_sensor.keller_shelly_mit_addon_heizung_fur_zirkulation_pumpe_gas_an_aus` – Pumpe Gas
-- `switch.keller_shelly_mit_addon_heizung_fur_zirkulation` – Pumpe Kamin
-- `input_number.zirkulation_grenze_t1`, `…_t2`, `…_hysterese`, `…_nachlauf`
+![Warmwasser](docs/unterseite-warmwasser.png)
 
-**Warmwasser**
-- `switch.warmepumpe`, `sensor.warmepumpe_leistung` (läuft bei 60–900 W)
-- `sensor.shellyplus_temperatur_bwwp_puffer_temperature`, `…_lufteinlass_temperature`, `…_luftauslass_temperature`
-- `switch.display_buderus_ww_zuheizen`, `switch.shellyplus_zirkulationspumpe`
-- `button.bwwp_steuerung_turn_on`, `switch.bwwp_steuerung_esp_lichtsensor_wp_status_led` – Heizstab
+| Schalter | Schaltet |
+|---|---|
+| Gas zuheizen | `switch.display_buderus_ww_zuheizen` |
+| Heizstab | `switch.bwwp_steuerung_esp_lichtsensor_wp_status_led` (Heizstab-Schalter der BWWP-Steuerung) |
+| Zirkulation | `switch.shellyplus_zirkulationspumpe` |
 
-**Gas**
-- `switch.display_buderus_gas_unterdruecken`
-- `sensor.zahlerstand`, `sensor.verbrauch_energie_heute`, `…_gestern`, `…_vorgestern`
-- `sensor.gas_energie_woche`, `…_monat`, `…_seit_stichtag`, `sensor.gas_kosten_woche`, `…_monat`, `…_seit_stichtag`
-- `input_number.gasreis_eingabe`, `input_number.gas_grundkosten_monat`, `input_datetime.gas_stichtag`
+Jeder Tipp öffnet zuerst eine Rückfrage. Geschaltet wird erst mit **Ja**.
 
-**Solar und Akkus (Victron, Pylontech)**
-- `sensor.victron_system_dc_pv_power`, `sensor.gx_device_solar_erzeugung_taglich`, `sensor.multiplus_ii_1_wechselrichterzustand`
-- `sensor.multiplus_ii_1_wechselrichter_ausgangsleistung_l1…l3`, `…_ausgangsspannung_l1`
-- `sensor.pylontech_battery_id_512_batterieladung`, `…_batterieleistung`, `…_batterietemperatur`, `sensor.victron_settings_ess_batterylife_soclimit`
-- `sensor.pylontech_batterie_system_2_battery1…10_*` – die Module (aus [Pylontech Batterie System 2](../Pylontech%20Batterie%20System%202))
+Der Heizstab wird über den Schalter der BWWP-Steuerung geschaltet, nicht direkt über die Servo-Taste. Die BWWP-Steuerung drückt nur, wenn es nötig ist, prüft das Ergebnis und zeigt sofort den Sollzustand. Über die Servo-Taste stand nach dem Ausschalten noch etwa 2,5 Minuten „an“ in der Anzeige.
 
-</details>
+### Unterseite Einstellungen
 
-## Dateien
+![Einstellungen](docs/unterseite-einstellungen.png)
 
-```
-heizungs-display-uebersicht-touch.yaml   ESPHome-Konfiguration
-heizungs-display/helpers.h               Hilfsfunktionen für Anzeige und Farben
-heizungs-display/akku-modul.yaml         ein Pylontech-Modul, 10-mal eingebunden
-image/                                   Symbole (WLAN, Brenner, Wärmepumpe)
-shelly/zirkulation.js                    Script für den Shelly der Pumpe Kamin
-secrets.yaml.example                     Vorlage für die secrets.yaml
-docs/                                    Vorschaubilder und Schaltbild
-```
+Links stehen die Werte des **gerade aktiven Profils**, rechts der Überhitzungsschutz und das aktive Profil.
 
-## Hinweise
+| Wert | Bereich | Schritt | Bedeutung |
+|---|---|---|---|
+| Oben (TO) | 10–90 °C | 0,5 °C | Pumpe Kamin darf einschalten, wenn Puffer oben diesen Wert erreicht |
+| Mitte (TM) | 10–90 °C | 0,5 °C | dasselbe für Puffer mitte |
+| Unten (TU) | 10–90 °C | 0,5 °C | dasselbe für Puffer unten |
+| K (aus) | 1–40 K | 1 K | Hysterese, gilt für alle drei Fühler |
+| Nachlauf | 0–60 min | 1 min | so lange muss die Ausschaltgrenze unterschritten sein |
+| Überhitzung | 60–95 °C | 1 °C | ab diesem Wert an Puffer oben läuft die Pumpe immer (gilt für beide Profile) |
 
-- Beim Kompilieren meldet ESPHome, dass GPIO3 ein *Strapping-Pin* ist. Das ist nur ein Hinweis, so ist das Board verdrahtet.
-- Anzeige und Touch laufen flüssig mit `logger: WARN`, 240 MHz, SPI 40 MHz und I²C 400 kHz. Schnell wechselnde Werte werden nur alle 5 bis 15 s neu gezeichnet.
+1. Mit `-` und `+` die Werte ändern. Orange heißt: noch nicht gespeichert.
+2. **Speichern** tippen und mit **Ja** bestätigen. Oben, mitte, unten und K landen im **aktiven Profil**, Nachlauf und Überhitzung gelten für beide.
+
+Der Knopf **Auto / Hand** unten in der Mitte schaltet zwischen Automatik (grün) und Handbetrieb (orange), ebenfalls mit Nachfrage. Das Feld **Aktives Profil** öffnet die Profilseite.
+
+Speichern geht über Home Assistant. Ohne Home Assistant lassen sich die Werte am Display nicht ändern, die zuletzt gespeicherten gelten aber weiter.
+
+### Unterseite Profile Tag / Abend
+
+![Profile](docs/unterseite-profile.png)
+
+Hier stehen beide Profile nebeneinander, darunter die Uhrzeiten, ab denen sie gelten.
+
+| Zeile | Bereich | Schritt |
+|---|---|---|
+| Oben, Mitte, Unten | 10–90 °C | 0,5 °C |
+| K (aus) | 1–40 K | 1 K |
+| ab (Uhrzeit) | 00:00–23:55 | 5 min |
+
+| Knopf | Wirkung |
+|---|---|
+| **Uhrzeit / Ganztags** | wechselt mit Nachfrage zwischen Umschaltung nach Uhrzeit und „Ganztags“ |
+| **Speichern** | schreibt beide Profile und beide Uhrzeiten nach Home Assistant, mit Nachfrage. Rahmen orange = es gibt ungespeicherte Änderungen |
+| **< Zurück** | zur Einstellungsseite, Ungespeichertes verfällt |
+
+Bei **Ganztags** gilt immer das Profil Tag. Die Spalte Abend und beide Uhrzeiten sind dann grau und gesperrt:
+
+![Profile bei Ganztags](docs/unterseite-profile-ganztags.png)
+
+### Unterseite Akkus
+
+![Akkus](docs/unterseite-akkus.png)
+
+Gesamtwerte des Speichers und für jedes der 10 Pylontech-Module Ladestand, Spannung, Strom, Temperatur und Zellspannungen.
+
+### Admin-Ansicht
+
+Über das **Zahnrad** auf der Übersicht. Vier Seiten, mit `<` und `>` blättern, **< Zurück** führt zur Übersicht.
+
+**Admin 1/4 Netzwerk:** WLAN-Empfang, SSID, IP-Adresse, MAC, Laufzeit seit dem letzten Start und Verbindung zu Home Assistant. Der Knopf **Neustart** startet das Display nach Rückfrage neu.
+
+![Admin Netzwerk](docs/admin-1-netzwerk.png)
+
+**Admin 2/4 Sensoren:** alle fünf DS18B20 mit Adresse und aktuellem Wert („Fehler“ in Rot, wenn ein Fühler nichts liefert), darunter die Rückmeldungen und der Ausgang.
+
+![Admin Sensoren](docs/admin-2-sensoren.png)
+
+| Anzeige | Bedeutung |
+|---|---|
+| P6 Ofen | Rücklaufanhebung am Kamin (Decoupler 1) |
+| P1 Gas | Pumpe Gas (Decoupler 2) |
+| P2 Puffer | Pumpe Kamin, Alpha Puffer → Haus (Decoupler 3) |
+| Ventil V1 | 3-Wege-Ventil (Decoupler 4) |
+| SSR P2 | Ausgang des Displays zur Pumpe Kamin |
+| Hand P2 | Handbetrieb der Pumpe Kamin |
+
+**Admin 3/4 Firmware:** Firmware-Stand (wird bei jeder Änderung hochgezählt), ESPHome-Version, Erstellungszeit, Gerät, Hardware, freier Speicher.
+
+![Admin Firmware](docs/admin-3-firmware.png)
+
+**Admin 4/4 Betreiber:** Anlagenbetreiber mit Telefon und E-Mail (im Repository Platzhalter, eigene Daten in der YAML eintragen).
+
+![Admin Betreiber](docs/admin-4-betreiber.svg)
+
+### Testseite Rückmeldungen
+
+![Rückmeldungen](docs/unterseite-rueckmeldungen.png)
+
+| Punkt | Eingang | Meldet |
+|---|---|---|
+| 1 Rücklaufanhebung P6 | GPIO39 | Spannung an der Pumpe P6 |
+| 2 Pumpe Gas | GPIO40 | Spannung an der Pumpe Gas |
+| 3 Pumpe Kamin | GPIO41 | Spannung **hinter** dem SSR, also an Pumpe Kamin und Ventil |
+| 4 Dreiwegeventil | GPIO42 | Spannung am 3-Wege-Ventil, das Gas vom Puffer trennt |
+
+Grün = „Spannung da“, grau = „keine Spannung“. Der Knopf **SSR Pumpe** schaltet das SSR direkt, mit Nachfrage. Dabei geht der Handbetrieb nicht automatisch an, die Regelung kann also gleich wieder umschalten.
+
+## 4. Regelung der Pumpe Kamin
+
+![Signalweg](docs/signalweg.png)
+
+### 4.1 So schaltet die Pumpe
+
+Das Display prüft alle 10 Sekunden, in dieser Reihenfolge:
+
+| Vorrang | Zustand | Bedingung |
+|---|---|---|
+| 1 | **Überhitzungsschutz** | Puffer oben ≥ Überhitzung: Pumpe **immer an**, auch bei laufender Pumpe Gas und im Handbetrieb. Erst unter Überhitzung − 5 K regelt das Display wieder normal |
+| 2 | **Sofort aus** | die **Pumpe Gas läuft** (Rückmeldung Decoupler 2) |
+| 3 | **Handbetrieb** | die Temperaturregelung ruht (siehe 4.3) |
+| 4 | **Ein** | Puffer oben ≥ TO **und** mitte ≥ TM **und** unten ≥ TU |
+| 4 | **Aus** | oben < TO − K **oder** mitte < TM − K **oder** unten < TU − K, und das die ganze Nachlaufzeit lang |
+
+- Ein Fühler ohne Wert zählt wie „zu kalt“, die Pumpe geht nach dem Nachlauf aus.
+- Nach einem Neustart sind SSR und Handbetrieb aus, danach regelt das Display normal.
+- Die Alpha regelt ihre Leistung selbst herunter, wenn die Thermostate im Haus zumachen. Längeres Laufen schadet also nicht.
+
+**Beispiel** (Profil Tag: TO 45 °C, TM 35 °C, TU 31 °C, K 5, Nachlauf 10 min):
+
+- Ein, sobald oben mindestens 45 °C, mitte 35 °C und unten 31 °C anliegen.
+- Aus, wenn oben unter 40 °C, mitte unter 30 °C oder unten unter 26 °C fällt und das 10 Minuten so bleibt.
+- Steigt die Temperatur vorher wieder darüber, beginnt die Zeit von vorn.
+
+Im Log steht bei jedem Schalten eine Zeile mit `kamin`, z. B. „TO/TM/TU erreicht -> Pumpe Kamin an“, „Nachlauf abgelaufen -> Pumpe Kamin aus“, „Pumpe Gas laeuft -> Pumpe Kamin aus“ oder „Ueberhitzungsschutz …“.
+
+### 4.2 Profile Tag und Abend
+
+Es gibt zwei Sätze Schaltwerte. So lässt sich der Puffer z. B. tagsüber mit hohen Einschaltwerten laden und abends auch die restliche, niedrigere Wärme nutzen.
+
+| | Profil Tag | Profil Abend |
+|---|---|---|
+| Ein ab oben / mitte / unten | `input_number.zirkulation_tag_t1` / `_tag_tm` / `_tag_t2` | `input_number.zirkulation_abend_t1` / `_abend_tm` / `_abend_t2` |
+| K | `input_number.zirkulation_tag_hyst` | `input_number.zirkulation_abend_hyst` |
+| gilt ab | `input_datetime.zirkulation_tag_ab` (6:00) | `input_datetime.zirkulation_abend_ab` (16:00) |
+
+| Helfer | Bedeutung |
+|---|---|
+| `input_select.zirkulation_profil` | aktives Profil (Tag / Abend) |
+| `input_boolean.zirkulation_ganztags` | an = immer Profil Tag, die Uhrzeiten werden nicht beachtet |
+
+Die Automatisierung **„Puffer Kamin – Schaltprofil Tag/Abend“** in Home Assistant:
+
+1. schaltet zu den Uhrzeiten auf Tag bzw. Abend (Abend nur, wenn Ganztags aus ist),
+2. wählt nach einem HA-Neustart, beim Umschalten von Ganztags und beim Ändern einer Uhrzeit sofort das passende Profil,
+3. kopiert bei jedem Profilwechsel und bei jeder Änderung eines Profilwerts die Werte des aktiven Profils in die Schaltwerte, mit denen das Display regelt (siehe 4.4).
+
+Eigene Regeln, z. B. Anwesenheit oder Wochenende, lassen sich dort als weitere Auslöser und Bedingungen ergänzen. Am Ende genügt es, das Profil umzuschalten, das Kopieren passiert von selbst.
+
+Die Helfer stehen in `config/packages/shelly Heizung/puffer_profile.yaml`.
+
+### 4.3 Handbetrieb
+
+| Bedienung | Wirkung |
+|---|---|
+| Knopf **Pumpe Kamin** auf Seite Puffer + **Ja** | Handbetrieb an, Pumpe Kamin schaltet um |
+| Knopf **Auto / Hand** in den Einstellungen + **Ja** | zwischen Automatik und Handbetrieb wechseln |
+| Schalter „Pumpe Kamin Handbetrieb“ in Home Assistant bzw. Mobil+ / Tablet | dasselbe von außen |
+
+- Im Handbetrieb ruht die Temperaturregelung. **Die Pumpe Gas schaltet die Pumpe Kamin trotzdem ab**, der Überhitzungsschutz schaltet sie trotzdem ein.
+- Nach **2 Stunden** beendet das Display den Handbetrieb von selbst, auch ohne Home Assistant.
+
+### 4.4 Woher die Schaltwerte kommen
+
+Das Display regelt mit den **aktiven Werten**. Die Automatisierung füllt sie aus dem aktiven Profil.
+
+| Einstellung | Home Assistant (aktiv) | Im Display gespeichert als |
+|---|---|---|
+| TO oben | `input_number.zirkulation_grenze_t1` | `r_to` |
+| TM mitte | `input_number.zirkulation_grenze_tm` | `r_tm` |
+| TU unten | `input_number.zirkulation_grenze_t2` | `r_tu` |
+| K | `input_number.zirkulation_hysterese` | `r_hy` |
+| Nachlauf | `input_number.zirkulation_nachlauf` | `r_nl` |
+| Überhitzung | `input_number.zirkulation_ueberhitzung` | `r_max` |
+
+Das Display übernimmt jede Änderung und behält den Wert auch nach einem Neustart und ohne Home Assistant. Diese Helfer stehen in `config/packages/shelly Heizung/inputhelfer.yaml`.
+
+**Ändern** lassen sich die Werte am Display (Einstellungen und Profile), im Dashboard Mobil+ (Ansicht Gas, Karte „Puffer Kamin“) und im Dashboard Tablet (Ansicht Keller, Karte „Steuerung“). Dort werden die **Profilwerte** bearbeitet, nicht die aktiven Werte direkt. In den Dashboards fragt ein Feld erst nach, ob gespeichert werden soll, wenn man es verlässt.
+
+## 5. Hardware und Anschlüsse
+
+### 5.1 SSR und Decoupler
+
+![Anschlussplan SSR und Decoupler](docs/anschlussplan-ssr-decoupler.png)
+
+| Funktion | GPIO | Leisten-Pin | Anschluss |
+|---|---|---|---|
+| SSR schalten | GPIO38 | 7 | über 1 kΩ an die Basis eines BC547, 10 kΩ Basis → GND |
+| 5 V für das SSR | – | 2 | an SSR Klemme 3 (+) |
+| Decoupler 1 Rücklaufanhebung P6 | GPIO39 | 9 | rote Ader (O) |
+| Decoupler 2 Pumpe Gas | GPIO40 | 11 | rote Ader (O) |
+| Decoupler 3 Pumpe Kamin | GPIO41 | 13 | rote Ader (O) |
+| Decoupler 4 Dreiwegeventil | GPIO42 | 15 | rote Ader (O) |
+| GND | – | 3, 4, 29, 30 | Emitter BC547, 10 kΩ, alle schwarzen Adern (⊥) |
+
+**SSR FQFER SSR-100 DA** (Eingang 3–32 V DC, Ausgang 24–380 V AC):
+
+- **3 (+)** an 5 V, **4 (−)** an den Kollektor des BC547, Emitter an GND
+- **1** = Phase (L) von der Sicherung, **2** = geschaltete Phase zur Pumpe Kamin
+- N und PE gehen direkt zur Pumpe, nicht über das SSR
+- Gesteuert wird über den Transistor, weil 3,3 V vom GPIO knapp am Mindestwert von 3 V liegen
+- Auf Metall montieren und die Klemmen abdecken
+
+**BC547:** Bei uns geprüft mit hFE 143, Belegung 1 = Kollektor, 2 = Basis, 3 = Emitter (flache Seite zu dir, Beinchen unten: C – B – E).
+
+**Shelly 1-Channel Decoupler 230V:** Der Ausgang ist ein Optokoppler, der bei anliegender Spannung **O (rot) mit ⊥ (schwarz) verbindet**. Er liefert keine eigene Spannung. Am Display mit internem Pull-up, invertiert und 50 ms entprellt. Braun (L) an die Phase der Pumpe, blau an N. Decoupler 3 sitzt **hinter dem SSR** (Klemme 2).
+
+**Achtung beim SSR:** Auch ausgeschaltet lässt es einige mA durch. Bleibt Punkt 3 auf der Testseite grün, obwohl das SSR aus ist, kommt dieser Leckstrom beim Decoupler an. Fällt ein SSR aus, ist es meist dauerhaft durchgeschaltet.
+
+### 5.2 Fühler und Taster
+
+![Schaltbild Fühler und Taster](docs/schaltbild.png)
+
+| Anschluss | GPIO | Leisten-Pin |
+|---|---|---|
+| 1-Wire Daten (alle 5 DS18B20) | GPIO48 | 23 |
+| 3,3 V | – | 31 / 32 |
+| Taster 1 | GPIO17 | 16 |
+| Taster 2 | GPIO18 | 18 |
+
+Zwischen Daten und 3,3 V liegt einmal ein Widerstand mit 4,7 kΩ.
+
+| Einbauort | Adresse | Anzeige | Entität |
+|---|---|---|---|
+| Puffer oben | `0xfb000000d4b44a28` | PS.-O | `sensor.heizungs_display_ubersicht_touch_puffer_oben` |
+| Puffer mitte | `0xa100000014e26e28` | PS.-M | `sensor.heizungs_display_ubersicht_touch_puffer_mitte` |
+| Puffer unten | `0xb5000000d20a9828` | PS.-U | `sensor.heizungs_display_ubersicht_touch_puffer_unten` |
+| Vorlauf Haus | `0xad000000d6ae7628` | V-Haus | `sensor.heizungs_display_ubersicht_touch_vorlauf_haus` |
+| Rücklauf Haus | `0x04000000d6775028` | R-Haus | `sensor.heizungs_display_ubersicht_touch_rucklauf_haus` |
+
+Die Adressen und aktuellen Werte stehen auch auf der Admin-Seite 2.
+
+**Neuen Fühler einbinden:** Das Display gibt seine 1-Wire-Liste nicht im normalen Log aus. Am einfachsten vorübergehend einen Text-Sensor einbauen, der `id(ow_bus)->get_devices()` ausgibt, flashen, die neue Adresse ablesen und den Sensor wieder entfernen. So wurde am 06.11.2026 der Fühler Puffer mitte gefunden.
+
+**Frei an der Leiste:** GPIO21 (Pin 5) und GPIO47 (Pin 21). GPIO45/46 nicht benutzen (Bootverhalten), GPIO9–11 gehören zur SD-Karte.
+
+### 5.3 Fest auf dem Board
+
+| Funktion | Pins |
+|---|---|
+| I²C (Touch FT6336, IO-Expander PCA9554, Codec ES8311) | SDA GPIO8, SCL GPIO7, 400 kHz |
+| SPI Display ST7796 | CLK GPIO5, MOSI GPIO1, MISO GPIO2, DC GPIO3 |
+| Display CS und Reset | PCA9554 Ausgang 2 und 1 |
+| Beleuchtung | GPIO6 |
+| Ton I²S | LRCLK GPIO15, BCLK GPIO13, MCLK GPIO12, DOUT GPIO16 |
+
+## 6. Home Assistant
+
+### 6.1 Vom Gerät
+
+| Entität | Zweck |
+|---|---|
+| `switch.heizungs_display_ubersicht_touch_pumpe_kamin_ssr` | SSR der Pumpe Kamin |
+| `switch.heizungs_display_ubersicht_touch_pumpe_kamin_handbetrieb` | Handbetrieb (endet nach 2 h) |
+| `binary_sensor.heizungs_display_ubersicht_touch_ruckmeldung_rucklaufanhebung_p6` | Rückmeldung P6 |
+| `binary_sensor.heizungs_display_ubersicht_touch_ruckmeldung_pumpe_gas` | Rückmeldung Pumpe Gas |
+| `binary_sensor.heizungs_display_ubersicht_touch_ruckmeldung_pumpe_kamin` | Rückmeldung Pumpe Kamin |
+| `binary_sensor.heizungs_display_ubersicht_touch_ruckmeldung_dreiwegeventil` | Rückmeldung 3-Wege-Ventil |
+| `sensor.heizungs_display_ubersicht_touch_puffer_oben`, `_puffer_mitte`, `_puffer_unten`, `_vorlauf_haus`, `_rucklauf_haus` | Fühler, auch für Display Buderus, Hans Ofen und die Dashboards |
+| `binary_sensor.heizungs_display_ubersicht_touch_taster_1`, `_taster_2` | Taster |
+| `light.waveshare_display_test_display_hintergrundbeleuchtung` | Beleuchtung |
+
+### 6.2 Vom Gerät gelesen
+
+| Bereich | Entitäten |
+|---|---|
+| Ofen | `sensor.aussen_display_buderus_ofen_fuehler` |
+| Schaltwerte (aktiv) | `input_number.zirkulation_grenze_t1`, `…_grenze_tm`, `…_grenze_t2`, `…_hysterese`, `…_nachlauf`, `…_ueberhitzung` |
+| Profile | `input_select.zirkulation_profil`, `input_boolean.zirkulation_ganztags`, `input_number.zirkulation_tag_*` / `_abend_*`, `input_datetime.zirkulation_tag_ab` / `_abend_ab` |
+| Warmwasser | `switch.warmepumpe`, `sensor.warmepumpe_leistung`, `sensor.shellyplus_temperatur_bwwp_puffer_temperature`, `…_lufteinlass_temperature`, `…_luftauslass_temperature`, `switch.shellyplus_zirkulationspumpe`, `switch.bwwp_steuerung_esp_lichtsensor_wp_status_led` |
+| Gas | `switch.display_buderus_gas_unterdruecken`, `switch.display_buderus_ww_zuheizen`, `sensor.zahlerstand`, `sensor.verbrauch_energie_heute`, `…_gestern`, `…_vorgestern` |
+| Gaskosten | `sensor.gas_energie_*`, `sensor.gas_kosten_*`, `input_number.gasreis_eingabe`, `input_number.gas_grundkosten_monat`, `input_datetime.gas_stichtag` |
+| Solar und Akkus | Victron- und Pylontech-Sensoren, siehe Konfiguration |
+
+Damit Schalter und Speichern funktionieren, muss beim ESPHome-Gerät **„Darf Home-Assistant-Aktionen ausführen“** aktiv sein.
+
+### 6.3 Dashboards
+
+**Mobil+, Ansicht Gas**
+
+| Karte | Inhalt |
+|---|---|
+| Steuerung | u. a. Schalter „Puffer-Pumpe Handbetrieb“ |
+| Einstellungen | Gaspreis, Grundkosten, Stichtag, Gassperre, dazu Puffer oben / mitte / unten |
+| Puffer Kamin | Tank mit drei Temperaturen, Pumpe Kamin (SSR), Ventil-Anzeige, Chip **Profil** und Schalter **Ganztags / nach Uhrzeit**, beide Profile, Uhrzeiten, Nachlauf, Überhitzungsschutz. Bei Ganztags sind Abend und Uhrzeiten grau |
+| Gas pro Tag | letzte 14 Tage; ein Tag antippen zeigt Verbrauch, m³, Kosten, Ø Außen, Ofen max und den Verlauf pro Stunde |
+| Verlauf 24 h | Ofen, Puffer oben / mitte / unten, Gasleistung |
+
+**Tablet, Ansicht Keller:** Anlagenschema mit Puffer oben / mitte / unten, Karte **Steuerung** mit Schalter „Puffer Profil Ganztags“ und denselben Profilwerten, Karte **Gas pro Tag**, Verlauf 24 h.
+
+Die Anzeige „Haus aus Puffer / aus Gas“ richtet sich noch nach der Pumpe Gas, nicht nach der Rückmeldung des Dreiwegeventils.
+
+## 7. Ändern und flashen
+
+1. `test-heizung.yaml` im ESPHome-Ordner bearbeiten. Das ist die maßgebliche Datei.
+2. In `substitutions` den Wert `fw_version` hochzählen, er erscheint auf Admin-Seite 3.
+3. Im Device Builder **Install** klicken (WLAN). Ein **oranger** Punkt hinter dem Gerätenamen heißt: geändert, noch nicht geflasht. **Blau** heißt: ESPHome-Update verfügbar.
+4. Danach **mindestens 1 Minute nicht neu starten**, sonst fällt das Display auf die alte Firmware zurück („OTA rollback detected“ im Log).
+5. Auf Admin-Seite 3 oder in Home Assistant beim Gerät den Firmware-Stand prüfen.
+
+Ältere Stände liegen in dem Ordner `archive` im ESPHome-Verzeichnis, z. B. `test-heizung_2026-11-07_vor-profilseite.yaml`.
+
+## 8. Einstellungen für flüssigen Betrieb
+
+| Einstellung | Wert |
+|---|---|
+| Logger | `WARN` |
+| CPU | 240 MHz |
+| Display SPI | 40 MHz |
+| I²C | 400 kHz |
+| Touch-Abfrage | alle 20 ms |
+| LVGL-Touch-Auswertung | alle 10 ms (sonst ~33 ms, dann gehen kurze Tipper verloren) |
+| Seiten | nicht scrollbar |
+| LVGL-Puffer | 25 % |
+| Seitenwechsel | ohne Animation |
+| Schnelle Werte | höchstens alle 5 s neu zeichnen, Akku-Module alle 15 s |
+| Aufwecken | jede Berührung bei dunkler Beleuchtung schaltet das Licht ein, eine Prüfung jede Sekunde startet die Anzeige |
+
+## 9. Wenn etwas nicht geht
+
+| Beobachtung | Mögliche Ursache | Was tun |
+|---|---|---|
+| Pumpe Kamin läuft nie | Pumpe Gas läuft (Vorrang) oder ein Puffer-Fühler unter seinem Wert | Seite Puffer, Admin-Seite 2 und Log nach `kamin` ansehen |
+| Pumpe Kamin läuft, obwohl der Puffer kalt ist | Handbetrieb an oder Überhitzungsschutz | Auto / Hand und Puffer oben prüfen |
+| Pumpe Kamin läuft, Display zeigt „aus“ | SSR defekt (durchgeschaltet) oder Pumpe anders versorgt | Rückmeldung 3 und Verdrahtung prüfen |
+| Punkt 3 grün, obwohl SSR aus | Leckstrom des SSR | Belastung prüfen, sonst mechanisches Relais |
+| Profil wechselt nicht um 16:00 | Ganztags an oder Automatisierung aus | Schalter Ganztags und Automatisierung „Puffer Kamin – Schaltprofil Tag/Abend“ prüfen |
+| Ein DS18B20 zeigt „Fehler“ | Wackelkontakt oder Fühler defekt | Admin-Seite 2, Kontakte prüfen, Display neu starten |
+| Erster Tipp tut nichts | Display war dunkel, der Tipp weckt nur | nochmal tippen |
+| Tipp wird gehört, aber nicht ausgeführt | zu kurzer Tipp | seit Firmware 2026.11.06b behoben, sonst etwas länger drücken |
+| Heizstab zeigt nach dem Ausschalten noch „an“ | ältere Firmware schaltete direkt die Servo-Taste | Firmware ab 2026.11.07c flashen |
+| Nach dem Flashen alte Version | in der ersten Minute neu gestartet | nochmal flashen, 1 Minute warten |
+| Kästchen statt Buchstaben | Zeichen fehlt in der großen Schrift | bei `glyphs` von `f40` ergänzen |
+
+## 10. Noch offen
+
+- Bedeutung der Rückmeldung Dreiwegeventil festlegen (Spannung = Gas oder Puffer), dann in die Dashboard-Anzeige übernehmen
+- Leckstrom-Test SSR mit angeschlossener Pumpe
+- Taster 1 und 2 haben noch keine Funktion
+- GitHub-Projekt auf den aktuellen Stand bringen (SSR, Decoupler, Profile, Admin)
+- Grundfos ALPHA3 über Bluetooth auslesen, sobald die Pumpen da sind
+
+## Dateien im Repository
+
+| Datei | Inhalt |
+|---|---|
+| `heizungs-display-uebersicht-touch.yaml` | ESPHome-Konfiguration (Betreiberdaten auf Admin 4 sind Platzhalter) |
+| `heizungs-display/helpers.h`, `heizungs-display/akku-modul.yaml` | Hilfsfunktionen und Akku-Paket |
+| `image/` | Symbole für die Anzeige |
+| `home-assistant/inputhelfer.yaml`, `home-assistant/puffer_profile.yaml` | HA-Pakete mit den Grenzwerten und den Profilen Tag/Abend |
+| `secrets.yaml.example` | Vorlage für die `secrets.yaml` |
+| `shelly/zirkulation.js` | altes Shelly-Skript, wird seit 05.11.2026 nicht mehr benutzt (Regelung läuft auf dem Display) |
+| `docs/` | Bilder der Seiten, Schaltbild, Signalweg, Anschlussplan |

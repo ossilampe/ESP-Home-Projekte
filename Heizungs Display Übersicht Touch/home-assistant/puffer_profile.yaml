@@ -1,0 +1,86 @@
+# Pumpe Kamin (Puffer -> Haus): zwei Schaltprofile "Tag" und "Abend".
+# Die Automatisierung "Puffer Kamin - Schaltprofil" schaltet zu den Uhrzeiten um und
+# kopiert die Werte des aktiven Profils in zirkulation_grenze_t1 / _tm / _t2 / zirkulation_hysterese.
+# Das Heizungs Display regelt mit diesen aktiven Werten (auch ohne HA mit den zuletzt erhaltenen).
+
+input_select:
+  zirkulation_profil:
+    name: Puffer Profil
+    options:
+      - Tag
+      - Abend
+    icon: mdi:clock-outline
+
+input_boolean:
+  # an = Ganztags: immer Profil Tag, die Uhrzeiten werden nicht beachtet
+  zirkulation_ganztags:
+    name: Puffer Profil Ganztags
+    icon: mdi:calendar-today
+
+input_datetime:
+  zirkulation_tag_ab:
+    name: Puffer Profil Tag ab
+    has_date: false
+    has_time: true
+  zirkulation_abend_ab:
+    name: Puffer Profil Abend ab
+    has_date: false
+    has_time: true
+
+input_number:
+  zirkulation_tag_t1:
+    name: Puffer Tag Ein ab oben
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_tag_tm:
+    name: Puffer Tag Ein ab mitte
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_tag_t2:
+    name: Puffer Tag Ein ab unten
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_tag_hyst:
+    name: Puffer Tag Hysterese
+    min: 1
+    max: 40
+    step: 1
+    unit_of_measurement: "K"
+    mode: box
+  zirkulation_abend_t1:
+    name: Puffer Abend Ein ab oben
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_abend_tm:
+    name: Puffer Abend Ein ab mitte
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_abend_t2:
+    name: Puffer Abend Ein ab unten
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_abend_hyst:
+    name: Puffer Abend Hysterese
+    min: 1
+    max: 40
+    step: 1
+    unit_of_measurement: "K"
+    mode: box

@@ -1,0 +1,45 @@
+input_number:
+  zirkulation_grenze_t1:
+    name: Zirkulation Grenze T1
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_grenze_t2:
+    name: Zirkulation Grenze T2
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  zirkulation_grenze_tm:
+    name: Zirkulation Grenze TM
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  # Ausschalten: unter Grenze minus Hysterese (gilt fuer oben, mitte und unten)
+  zirkulation_hysterese:
+    name: Zirkulation Hysterese
+    min: 1
+    max: 40
+    step: 1
+    unit_of_measurement: "K"
+    mode: box
+  zirkulation_nachlauf:
+    name: Zirkulation Nachlauf
+    min: 0
+    max: 60
+    step: 1
+    unit_of_measurement: "min"
+    mode: box
+  # Ueberhitzungsschutz: ab Puffer oben >= Wert laeuft die Pumpe Kamin immer
+  zirkulation_ueberhitzung:
+    name: Zirkulation Überhitzungsschutz
+    min: 60
+    max: 95
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box

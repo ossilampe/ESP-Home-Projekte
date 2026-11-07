@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include "esp_heap_caps.h"
 
 namespace hz {
 
@@ -30,6 +31,14 @@ inline void num(lv_obj_t *l, float v, const char *fmt) {
 inline void txt(lv_obj_t *l, const char *t, uint32_t farbe) {
   lv_label_set_text(l, t);
   lv_obj_set_style_text_color(l, lv_color_hex(farbe), 0);
+}
+
+// Uhrzeit aus HA ("16:00:00" oder "16:00") in Minuten seit Mitternacht, -1 wenn ungueltig
+inline int minuten(const std::string &s) {
+  int h = -1, m = -1;
+  if (s.size() < 5 || sscanf(s.c_str(), "%d:%d", &h, &m) != 2) return -1;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return -1;
+  return h * 60 + m;
 }
 
 // Zustand eines HA-Schalters: 1 = an, 0 = aus, -1 = unbekannt / nicht verfuegbar
