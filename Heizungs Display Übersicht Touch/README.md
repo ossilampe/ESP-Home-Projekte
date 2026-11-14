@@ -1,6 +1,6 @@
 # Heizungs Display Übersicht Touch
 
-Stand: 07.11.2026 · Firmware 2026.11.07c · Gerät `waveshare-display-test` · Einbauort Heizungsraum (ersetzt den LC2014)
+Stand: 14.11.2026 · Firmware 2026.11.14 · Gerät `waveshare-display-test` · Einbauort Heizungsraum (ersetzt den LC2014)
 
 Touch-Display für den Heizungsraum. Es zeigt Ofen, Pufferspeicher, Warmwasser, Gas, Gaskosten, Solar und Akkus und schaltet Warmwasser-Zuheizen, Heizstab und Zirkulation.
 
@@ -437,6 +437,8 @@ Die Anzeige „Haus aus Puffer / aus Gas“ richtet sich noch nach der Pumpe Gas
 | Erster Tipp tut nichts | Display war dunkel, der Tipp weckt nur | nochmal tippen |
 | Tipp wird gehört, aber nicht ausgeführt | zu kurzer Tipp | seit Firmware 2026.11.06b behoben, sonst etwas länger drücken |
 | Heizstab zeigt nach dem Ausschalten noch „an“ | ältere Firmware schaltete direkt die Servo-Taste | Firmware ab 2026.11.07c flashen |
+| Pumpe Kamin geht nach wenigen Minuten aus, ohne Nachlauf | Fehler in der Nachlauf-Zeitmessung bis Firmware 2026.11.07c | Firmware ab 2026.11.14 flashen |
+| Pumpe von Hand eingeschaltet, geht gleich wieder aus | SSR direkt geschaltet, ohne Handbetrieb | Knopf **Pumpe Kamin** auf der Seite Puffer benutzen, der setzt den Handbetrieb |
 | Nach dem Flashen alte Version | in der ersten Minute neu gestartet | nochmal flashen, 1 Minute warten |
 | Kästchen statt Buchstaben | Zeichen fehlt in der großen Schrift | bei `glyphs` von `f40` ergänzen |
 
@@ -445,8 +447,24 @@ Die Anzeige „Haus aus Puffer / aus Gas“ richtet sich noch nach der Pumpe Gas
 - Bedeutung der Rückmeldung Dreiwegeventil festlegen (Spannung = Gas oder Puffer), dann in die Dashboard-Anzeige übernehmen
 - Leckstrom-Test SSR mit angeschlossener Pumpe
 - Taster 1 und 2 haben noch keine Funktion
-- GitHub-Projekt auf den aktuellen Stand bringen (SSR, Decoupler, Profile, Admin)
 - Grundfos ALPHA3 über Bluetooth auslesen, sobald die Pumpen da sind
+
+## Versionen
+
+Die Firmware-Version steht in der YAML unter `substitutions: fw_version` und auf Admin-Seite 3.
+
+| Version | Datum | Änderungen |
+|---|---|---|
+| 2026.11.14 | 14.11.2026 | **Fehlerbehebung Nachlauf:** Die Pumpe Kamin ging oft sofort aus, sobald ein Puffer-Fühler unter seinen Wert minus K fiel, statt erst nach der Nachlaufzeit. Ursache: Beim ersten Unterschreiten wurde die Zeit im selben Durchlauf geprüft, `millis() \| 1` konnte 1 ms in der Zukunft liegen und die Differenz lief über. Jetzt startet das erste Unterschreiten nur die Zeitmessung, geprüft wird ab dem nächsten Durchlauf. Ein ungültiger Nachlaufwert gilt als 10 min |
+| 2026.11.07c | 07.11.2026 | Heizstab über den Schalter der BWWP-Steuerung statt über die Servo-Taste |
+| 2026.11.07b | 07.11.2026 | Seite Profile Tag / Abend mit Uhrzeiten (5 min) und Ganztags |
+| 2026.11.07 | 07.11.2026 | Profile Tag / Abend aus Home Assistant, wieder ein K-Wert für alle drei Fühler |
+| 2026.11.06d | 06.11.2026 | Einstellungen: Nachlauf ohne „min“, damit nichts in die nächste Zeile rutscht |
+| 2026.11.06c | 06.11.2026 | Überhitzungsschutz (Puffer oben, einstellbar), vorübergehend eigene K-Werte je Fühler |
+| 2026.11.06b | 06.11.2026 | Touch-Auswertung alle 10 ms (kurze Tipper gingen verloren), eindeutige Pumpennamen auf Admin 2 |
+| 2026.11.06 | 06.11.2026 | Admin-Ansicht (Netzwerk, Sensoren, Firmware, Betreiber), Seiten nicht mehr scrollbar |
+| – | 06.11.2026 | Fühler Puffer mitte, Grenze TM, neue Puffer-Seite |
+| – | 05.11.2026 | Regelung der Pumpe Kamin über SSR im Display, vier Shelly Decoupler als Rückmeldung |
 
 ## Dateien im Repository
 

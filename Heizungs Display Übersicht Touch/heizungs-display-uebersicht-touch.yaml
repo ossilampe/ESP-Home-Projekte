@@ -1,6 +1,6 @@
 # Firmware-Stand fuer die Admin-Seite (bei Aenderungen hochzaehlen)
 substitutions:
-  fw_version: "2026.11.07c"
+  fw_version: "2026.11.14"
 
 esphome:
   name: waveshare-display-test
@@ -626,8 +626,13 @@ interval:
           }
           bool unter = std::isnan(t1) || std::isnan(t2) || std::isnan(tm) || t1 < id(r_to) - id(r_hy) || tm < id(r_tm) - id(r_hy) || t2 < id(r_tu) - id(r_hy);
           if (!unter) { id(unter_seit) = 0; return; }
-          if (id(unter_seit) == 0) id(unter_seit) = millis() | 1;
-          if (millis() - id(unter_seit) >= (uint32_t) (id(r_nl) * 60000.0f)) {
+          // Nachlauf beginnt jetzt, geprueft wird ab dem naechsten Durchlauf. (Frueher wurde im selben
+          // Durchlauf gerechnet: millis()|1 konnte 1 ms in der Zukunft liegen, die Differenz lief ueber
+          // und die Pumpe ging ohne Nachlauf sofort aus.)
+          if (id(unter_seit) == 0) { id(unter_seit) = millis() | 1; return; }
+          uint32_t seit = millis() - id(unter_seit);
+          float nl = std::isnan(id(r_nl)) ? 10.0f : std::max(0.0f, id(r_nl));
+          if (seit < 0x80000000UL && seit >= (uint32_t) (nl * 60000.0f)) {
             ESP_LOGI("kamin", "Nachlauf abgelaufen -> Pumpe Kamin aus");
             id(unter_seit) = 0;
             id(ssr_kamin).turn_off();
